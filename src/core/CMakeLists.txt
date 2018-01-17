@@ -37,6 +37,8 @@ set(SRCS
             hle/kernel/wait_object.cpp
             hle/lock.cpp
             hle/romfs.cpp
+            hle/service/acc/acc.cpp
+            hle/service/acc/acc_u0.cpp
             hle/service/am/am.cpp
             hle/service/am/applet_oe.cpp
             hle/service/aoc/aoc_u.cpp
@@ -48,8 +50,8 @@ set(SRCS
             hle/service/nvdrv/devices/nvdisp_disp0.cpp
             hle/service/nvdrv/devices/nvhost_as_gpu.cpp
             hle/service/nvdrv/devices/nvmap.cpp
+            hle/service/nvdrv/interface.cpp
             hle/service/nvdrv/nvdrv.cpp
-            hle/service/nvdrv/nvdrv_a.cpp
             hle/service/pctl/pctl.cpp
             hle/service/pctl/pctl_a.cpp
             hle/service/service.cpp
@@ -124,6 +126,8 @@ set(HEADERS
             hle/lock.h
             hle/result.h
             hle/romfs.h
+            hle/service/acc/acc.h
+            hle/service/acc/acc_u0.h
             hle/service/am/am.h
             hle/service/am/applet_oe.h
             hle/service/aoc/aoc_u.h
@@ -136,8 +140,8 @@ set(HEADERS
             hle/service/nvdrv/devices/nvdisp_disp0.h
             hle/service/nvdrv/devices/nvhost_as_gpu.h
             hle/service/nvdrv/devices/nvmap.h
+            hle/service/nvdrv/interface.h
             hle/service/nvdrv/nvdrv.h
-            hle/service/nvdrv/nvdrv_a.h
             hle/service/pctl/pctl.h
             hle/service/pctl/pctl_a.h
             hle/service/service.h
