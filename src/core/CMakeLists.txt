@@ -45,6 +45,8 @@ set(SRCS
             hle/service/apm/apm.cpp
             hle/service/audio/audio.cpp
             hle/service/audio/audout_u.cpp
+            hle/service/fsp/fsp.cpp
+            hle/service/fsp/srv.cpp
             hle/service/hid/hid.cpp
             hle/service/lm/lm.cpp
             hle/service/nvdrv/devices/nvdisp_disp0.cpp
@@ -134,6 +136,8 @@ set(HEADERS
             hle/service/apm/apm.h
             hle/service/audio/audio.h
             hle/service/audio/audout_u.h
+            hle/service/fsp/fsp.h
+            hle/service/fsp/srv.h
             hle/service/hid/hid.h
             hle/service/lm/lm.h
             hle/service/nvdrv/devices/nvdevice.h
