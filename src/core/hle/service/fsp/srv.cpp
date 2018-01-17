@@ -11,53 +11,49 @@
 namespace Service {
 namespace Filesystem {
 
-class IStorage final : public ServiceFramework<IStorage> {
-public:
-    IStorage() : ServiceFramework("IStorage") {
-        static const FunctionInfo functions[] = {
-            {0, &IStorage::Read, "Read"},       {1, &IStorage::Write, "Write"},
-            {2, &IStorage::Flush, "Flush"},     {3, &IStorage::SetSize, "SetSize"},
-            {4, &IStorage::GetSize, "GetSize"},
-        };
-        RegisterHandlers(functions);
-    }
+IStorage::IStorage() : ServiceFramework("IStorage") {
+    static const FunctionInfo functions[] = {
+        {0, &IStorage::Read, "Read"},       {1, &IStorage::Write, "Write"},
+        {2, &IStorage::Flush, "Flush"},     {3, &IStorage::SetSize, "SetSize"},
+        {4, &IStorage::GetSize, "GetSize"},
+    };
+    RegisterHandlers(functions);
+}
 
-private:
-    void Read(Kernel::HLERequestContext& ctx) {
+void IStorage::Read(Kernel::HLERequestContext& ctx) {
 
-        IPC::RequestParser rp{ctx};
-        u32 offset = rp.Pop<u32>();
-        u32 length = rp.Pop<u32>();
+    IPC::RequestParser rp{ctx};
+    u32 offset = rp.Pop<u32>();
+    u32 length = rp.Pop<u32>();
 
-        IPC::RequestBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service, "(STUBBED) called off: 0x%llx, len: 0x%llx", offset, length);
-    }
+    IPC::RequestBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+    LOG_WARNING(Service, "(STUBBED) called off: 0x%llx, len: 0x%llx", offset, length);
+}
 
-    void Write(Kernel::HLERequestContext& ctx) {
-        IPC::RequestBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service, "(STUBBED) called");
-    }
+void IStorage::Write(Kernel::HLERequestContext& ctx) {
+    IPC::RequestBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+    LOG_WARNING(Service, "(STUBBED) called");
+}
 
-    void Flush(Kernel::HLERequestContext& ctx) {
-        IPC::RequestBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service, "(STUBBED) called");
-    }
+void IStorage::Flush(Kernel::HLERequestContext& ctx) {
+    IPC::RequestBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+    LOG_WARNING(Service, "(STUBBED) called");
+}
 
-    void SetSize(Kernel::HLERequestContext& ctx) {
-        IPC::RequestBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service, "(STUBBED) called");
-    }
+void IStorage::SetSize(Kernel::HLERequestContext& ctx) {
+    IPC::RequestBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+    LOG_WARNING(Service, "(STUBBED) called");
+}
 
-    void GetSize(Kernel::HLERequestContext& ctx) {
-        IPC::RequestBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service, "(STUBBED) called");
-    }
-};
+void IStorage::GetSize(Kernel::HLERequestContext& ctx) {
+    IPC::RequestBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+    LOG_WARNING(Service, "(STUBBED) called");
+}
 
 FSP_SRV::FSP_SRV() : ServiceFramework("fsp-srv") {
     static const FunctionInfo functions[] = {
