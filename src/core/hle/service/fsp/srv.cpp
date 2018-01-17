@@ -23,8 +23,8 @@ IStorage::IStorage() : ServiceFramework("IStorage") {
 void IStorage::Read(Kernel::HLERequestContext& ctx) {
 
     IPC::RequestParser rp{ctx};
-    u32 offset = rp.Pop<u32>();
-    u32 length = rp.Pop<u32>();
+    u64 offset = rp.Pop<u64>();
+    u64 length = rp.Pop<u64>();
 
     IPC::RequestBuilder rb{ctx, 2};
     rb.Push(RESULT_SUCCESS);
