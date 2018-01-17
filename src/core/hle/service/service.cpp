@@ -19,6 +19,7 @@
 #include "core/hle/service/aoc/aoc_u.h"
 #include "core/hle/service/apm/apm.h"
 #include "core/hle/service/audio/audio.h"
+#include "core/hle/service/fsp/fsp.h"
 #include "core/hle/service/hid/hid.h"
 #include "core/hle/service/lm/lm.h"
 #include "core/hle/service/nvdrv/nvdrv.h"
@@ -170,6 +171,7 @@ void Init() {
     AOC::InstallInterfaces(*SM::g_service_manager);
     APM::InstallInterfaces(*SM::g_service_manager);
     Audio::InstallInterfaces(*SM::g_service_manager);
+    Filesystem::InstallInterfaces(*SM::g_service_manager);
     HID::InstallInterfaces(*SM::g_service_manager);
     LM::InstallInterfaces(*SM::g_service_manager);
     Nvidia::InstallInterfaces(*SM::g_service_manager);
