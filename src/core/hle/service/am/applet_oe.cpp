@@ -7,6 +7,7 @@
 #include "core/hle/kernel/event.h"
 #include "core/hle/service/am/applet_oe.h"
 #include "core/hle/service/apm/apm.h"
+#include "core/hle/service/fsp/srv.h"
 
 namespace Service {
 namespace AM {
@@ -205,6 +206,7 @@ class IApplicationFunctions final : public ServiceFramework<IApplicationFunction
 public:
     IApplicationFunctions() : ServiceFramework("IApplicationFunctions") {
         static const FunctionInfo functions[] = {
+            {1, &IApplicationFunctions::PopLaunchParameter, "PopLaunchParameter"},
             {22, &IApplicationFunctions::SetTerminateResult, "SetTerminateResult"},
             {66, &IApplicationFunctions::InitializeGamePlayRecording,
              "InitializeGamePlayRecording"},
@@ -215,6 +217,15 @@ public:
     }
 
 private:
+    void PopLaunchParameter(Kernel::HLERequestContext& ctx) {
+        IPC::RequestBuilder rb{ctx, 2, 0, 0, 1};
+
+        rb.Push(RESULT_SUCCESS);
+        rb.PushIpcInterface<Filesystem::IStorage>();
+
+        LOG_DEBUG(Service, "called");
+    }
+
     void SetTerminateResult(Kernel::HLERequestContext& ctx) {
         // Takes an input u32 Result, no output.
         // For example, in some cases official apps use this with error 0x2A2 then uses svcBreak.
