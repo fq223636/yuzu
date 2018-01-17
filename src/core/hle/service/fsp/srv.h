@@ -6,6 +6,7 @@
 
 #include "core/hle/service/service.h"
 
+namespace Service {
 namespace Filesystem {
 
 class FSP_SRV final : public ServiceFramework<FSP_SRV> {
