@@ -97,6 +97,10 @@ void HLERequestContext::ParseCommandBuffer(u32_le* src_cmdbuf, bool incoming) {
         // All outgoing domain messages have the domain header
         domain_message_header =
             std::make_unique<IPC::DomainMessageHeader>(rp.PopRaw<IPC::DomainMessageHeader>());
+
+        if (domain_message_header->command == 2) {
+            rp.Skip(4, false);
+        }
     }
 
     data_payload_header =
@@ -123,11 +127,7 @@ ResultCode HLERequestContext::PopulateFromIncomingCommandBuffer(u32_le* src_cmdb
     }
 
     // The data_size already includes the payload header, the padding and the domain header.
-    size_t size = data_payload_offset + command_header->data_size -
-                  sizeof(IPC::DataPayloadHeader) / sizeof(u32) - 4;
-    if (domain_message_header)
-        size -= sizeof(IPC::DomainMessageHeader) / sizeof(u32);
-    std::copy_n(src_cmdbuf, size, cmd_buf.begin());
+    std::copy_n(src_cmdbuf, cmd_buf.size(), cmd_buf.begin());
     return RESULT_SUCCESS;
 }
 
