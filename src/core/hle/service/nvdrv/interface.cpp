@@ -37,7 +37,7 @@ void NVDRV::Ioctl(Kernel::HLERequestContext& ctx) {
     std::vector<u8> input(input_buffer.size);
     std::vector<u8> output(output_buffer.Size());
 
-    Memory::ReadBlock(input_buffer.Address(), input.data(), input_buffer.Size());
+    Memory::ReadBlock(input_buffer.Address(), input.data(), input_buffer.size);
 
     u32 nv_result = nvdrv->Ioctl(fd, command, input, output);
 

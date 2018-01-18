@@ -91,10 +91,6 @@ void HLERequestContext::ParseCommandBuffer(u32_le* src_cmdbuf, bool incoming) {
         // All outgoing domain messages have the domain header
         domain_message_header =
             std::make_unique<IPC::DomainMessageHeader>(rp.PopRaw<IPC::DomainMessageHeader>());
-
-        /*if (domain_message_header->command == 2) {
-            rp.Skip(4, false);
-        }*/
     }
 
     data_payload_header =

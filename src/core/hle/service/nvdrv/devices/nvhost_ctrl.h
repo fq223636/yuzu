@@ -18,6 +18,27 @@ public:
     ~nvhost_ctrl() override = default;
 
     u32 ioctl(u32 command, const std::vector<u8>& input, std::vector<u8>& output) override;
+
+private:
+    enum IoctlCommands {
+        IocSyncptReadCommand = 0xC0080014,
+        IocSyncptIncrCommand = 0x40040015,
+        IocSyncptWaitCommand = 0xC00C0016,
+        IocModuleMutexCommand = 0x40080017,
+        IocModuleRegRDWRCommand = 0xC008010E,
+        IocSyncptWaitexCommand = 0xC0100019,
+        IocSyncptReadMaxCommand = 0xC008001A,
+        IocGetConfigCommand = 0xC183001B,
+    };
+
+private:
+    struct IocGetConfigParams {
+        char domain_str[0x41];
+        char param_str[0x41];
+        char config_str[0x101];
+    };
+
+    u32 IocGetConfig(const std::vector<u8>& input, std::vector<u8>& output);
 };
 
 } // namespace Devices
