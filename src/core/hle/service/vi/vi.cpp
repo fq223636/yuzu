@@ -12,6 +12,8 @@
 #include "core/hle/service/nvdrv/nvdrv.h"
 #include "core/hle/service/vi/vi.h"
 #include "core/hle/service/vi/vi_m.h"
+#include "core/hle/service/vi/vi_s.h"
+#include "core/hle/service/vi/vi_u.h"
 #include "video_core/renderer_base.h"
 #include "video_core/video_core.h"
 
@@ -716,6 +718,8 @@ IApplicationDisplayService::IApplicationDisplayService(std::shared_ptr<NVFlinger
 
 void InstallInterfaces(SM::ServiceManager& service_manager) {
     std::make_shared<VI_M>()->InstallAsService(service_manager);
+    std::make_shared<VI_S>()->InstallAsService(service_manager);
+    std::make_shared<VI_U>()->InstallAsService(service_manager);
 }
 
 NVFlinger::NVFlinger() {
@@ -731,8 +735,8 @@ NVFlinger::NVFlinger() {
     displays.emplace_back(internal);
 
     // Schedule the screen composition events
-    composition_event =
-        CoreTiming::RegisterEvent("ScreenCompositioin", [this](u64 userdata, int cycles_late) {
+    composition_event = CoreTiming::RegisterEvent(
+        "ScreenCompositioin" + std::to_string(rand()), [this](u64 userdata, int cycles_late) {
             Compose();
             CoreTiming::ScheduleEvent(frame_ticks - cycles_late, composition_event);
         });
