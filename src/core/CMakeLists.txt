@@ -58,7 +58,6 @@ set(SRCS
             hle/service/sm/controller.cpp
             hle/service/sm/sm.cpp
             hle/service/time/time.cpp
-            hle/service/time/time_s.cpp
             hle/service/vi/vi.cpp
             hle/service/vi/vi_m.cpp
             hle/shared_page.cpp
@@ -90,6 +89,7 @@ set(HEADERS
             file_sys/ivfc_archive.h
             file_sys/path_parser.h
             file_sys/savedata_archive.h
+            file_sys/title_metadata.h
             frontend/emu_window.h
             frontend/framebuffer_layout.h
             frontend/input.h
@@ -148,7 +148,6 @@ set(HEADERS
             hle/service/sm/controller.h
             hle/service/sm/sm.h
             hle/service/time/time.h
-            hle/service/time/time_s.h
             hle/service/vi/vi.h
             hle/service/vi/vi_m.h
             hle/shared_page.h
