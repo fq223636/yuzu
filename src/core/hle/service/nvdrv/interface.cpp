@@ -31,10 +31,10 @@ void NVDRV::Ioctl(Kernel::HLERequestContext& ctx) {
     u32 fd = rp.Pop<u32>();
     u32 command = rp.Pop<u32>();
 
-    auto input_buffer = ctx.BufferDescriptorA()[0];
+    auto input_buffer = ctx.BufferDescriptorX()[0];
     auto output_buffer = ctx.BufferDescriptorB()[0];
 
-    std::vector<u8> input(input_buffer.Size());
+    std::vector<u8> input(input_buffer.size);
     std::vector<u8> output(output_buffer.Size());
 
     Memory::ReadBlock(input_buffer.Address(), input.data(), input_buffer.Size());
