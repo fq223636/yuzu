@@ -145,6 +145,8 @@ void SvcWrap() {
     FuncReturn(retval);
 }
 
+//ResultCode CreateSharedMemory(Handle* handle, u64 sz, u64 localPerm, u64 remotePerm)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Function wrappers that return type u32
 
