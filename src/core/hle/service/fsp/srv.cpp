@@ -13,25 +13,38 @@ namespace Filesystem {
 
 class IStorage final : public ServiceFramework<IStorage> {
 public:
-    IStorage() : ServiceFramework("IStorage") {
+    IStorage(std::string file) : ServiceFramework("IStorage") {
         static const FunctionInfo functions[] = {
             {0, &IStorage::Read, "Read"},       {1, &IStorage::Write, "Write"},
             {2, &IStorage::Flush, "Flush"},     {3, &IStorage::SetSize, "SetSize"},
             {4, &IStorage::GetSize, "GetSize"},
         };
         RegisterHandlers(functions);
+        fp = fopen(file.c_str(), "rb");
+        isFileOpen = fp != NULL;
     }
 
 private:
+    FILE* fp;
+    bool isFileOpen = false;
     void Read(Kernel::HLERequestContext& ctx) {
-
         IPC::RequestParser rp{ctx};
-        u32 offset = rp.Pop<u32>();
-        u32 length = rp.Pop<u32>();
+        u64 offset = rp.Pop<u64>();
+        u64 length = rp.Pop<u64>();
+        LOG_WARNING(Service, "(STUBBED) called off: 0x%lx, len: 0x%lx", offset, length);
+        if (!isFileOpen) {
+            IPC::RequestBuilder rb{ctx, 2};
+            rb.Push(0x1F4202); // Temp for now
+        }
+        _fseeki64(fp, offset, SEEK_SET);
+
+        auto output_buffer = ctx.BufferDescriptorB()[0];
+        std::vector<u8> output(output_buffer.Size());
+        fread(reinterpret_cast<char*>(&output[0]), length, 1, fp);
+        Memory::WriteBlock(output_buffer.Address(), output.data(), output_buffer.Size());
 
         IPC::RequestBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service, "(STUBBED) called off: 0x%llx, len: 0x%llx", offset, length);
     }
 
     void Write(Kernel::HLERequestContext& ctx) {
@@ -85,14 +98,14 @@ void FSP_SRV::GetGlobalAccessLogMode(Kernel::HLERequestContext& ctx) {
 void FSP_SRV::OpenDataStorageByCurrentProcess(Kernel::HLERequestContext& ctx) {
     IPC::RequestBuilder rb{ctx, 2, 0, 0, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<IStorage>();
+    rb.PushIpcInterface<IStorage>("RomFS.istorage"); // Get actual rom dir and check there
     LOG_WARNING(Service, "(STUBBED) called");
 }
 
 void FSP_SRV::OpenRomStorage(Kernel::HLERequestContext& ctx) {
     IPC::RequestBuilder rb{ctx, 2, 0, 0, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<IStorage>();
+    rb.PushIpcInterface<IStorage>("RomFS.istorage"); // Get actual rom dir and check there
     LOG_WARNING(Service, "(STUBBED) called");
 }
 
