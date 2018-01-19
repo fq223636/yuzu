@@ -27,17 +27,31 @@ void NVDRV::Open(Kernel::HLERequestContext& ctx) {
 void NVDRV::Ioctl(Kernel::HLERequestContext& ctx) {
     LOG_WARNING(Service, "(STUBBED) called");
 
+    for (int i = 0; i < 0x80 / 4; i++) {
+        if (i % (16 / 4) == 0)
+            printf("\n");
+        u32_le buf = ctx.CommandBuffer()[i];
+        u8 a = (buf >> 24) & 0xFF;
+        u8 b = (buf >> 16) & 0xFF;
+        u8 c = (buf >> 8) & 0xFF;
+        u8 d = buf & 0xFF;
+        printf("%02x %02x %02x %02x ", d, c, b, a);
+    }
+    printf("\n");
+
     IPC::RequestParser rp{ctx};
     u32 fd = rp.Pop<u32>();
     u32 command = rp.Pop<u32>();
 
-    auto input_buffer = ctx.BufferDescriptorX()[0];
+    auto input_buffer = ctx.BufferDescriptorA()[0];
     auto output_buffer = ctx.BufferDescriptorB()[0];
 
-    std::vector<u8> input(input_buffer.size);
+    ctx.DumpInfo();
+
+    std::vector<u8> input(input_buffer.Size());
     std::vector<u8> output(output_buffer.Size());
 
-    Memory::ReadBlock(input_buffer.Address(), input.data(), input_buffer.size);
+    Memory::ReadBlock(input_buffer.Address(), input.data(), input_buffer.Size());
 
     u32 nv_result = nvdrv->Ioctl(fd, command, input, output);
 

@@ -38,7 +38,7 @@ private:
         char config_str[0x101];
     };
 
-    u32 IocGetConfig(const std::vector<u8>& input, std::vector<u8>& output);
+    u32 NvOsGetConfigU32(const std::vector<u8>& input, std::vector<u8>& output);
 };
 
 } // namespace Devices

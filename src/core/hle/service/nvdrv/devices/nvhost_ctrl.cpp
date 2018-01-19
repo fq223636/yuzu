@@ -16,21 +16,26 @@ u32 nvhost_ctrl::ioctl(u32 command, const std::vector<u8>& input, std::vector<u8
 
     switch (command) {
     case IocGetConfigCommand:
-        return IocGetConfig(input, output);
+        return NvOsGetConfigU32(input, output);
     }
     UNIMPLEMENTED();
     return 0;
 }
 
-u32 nvhost_ctrl::IocGetConfig(const std::vector<u8>& input, std::vector<u8>& output) {
+u32 nvhost_ctrl::NvOsGetConfigU32(const std::vector<u8>& input, std::vector<u8>& output) {
     LOG_WARNING(Service, "(STUBBED) lets do it");
     IocGetConfigParams params;
     std::memcpy(&params, input.data(), sizeof(params));
-    LOG_WARNING(Service, "(STUBBED) memcpy");
-
-    LOG_WARNING(Service, "(STUBBED) domain_str %s", params.config_str);
     LOG_WARNING(Service, "(STUBBED) param_str %s", params.param_str);
-    UNIMPLEMENTED();
+    LOG_WARNING(Service, "(STUBBED) domain_str %s", params.domain_str);
+
+    if (!strcmp(params.param_str, "NV_MEMORY_PROFILER")) {
+        std::memcpy(&params.config_str, "1\x00", 2);
+    } else {
+        UNIMPLEMENTED();
+    }
+    std::memcpy(output.data(), &params, sizeof(params));
+    LOG_WARNING(Service, "(STUBBED) memcpy");
     return 0;
 }
 

@@ -151,6 +151,28 @@ public:
         return domain_message_header;
     }
 
+    const void DumpInfo() {
+        printf("[IPC_Dump] XDescriptor count: %d\n", buffer_x_desciptors.size());
+        for (int i = 0; i < buffer_x_desciptors.size(); i++)
+            printf("\t[IPC_Dump] XDescriptor[%d] size: %d, addr: 0x%x\n", i,
+                   buffer_x_desciptors[i].size, buffer_x_desciptors[i].Address());
+
+        printf("[IPC_Dump] ADescriptor count: %d\n", buffer_a_desciptors.size());
+        for (int i = 0; i < buffer_a_desciptors.size(); i++)
+            printf("\t[IPC_Dump] ADescriptor[%d] size: %d, addr: 0x%x\n", i,
+                   buffer_a_desciptors[i].Size(), buffer_a_desciptors[i].Address());
+
+        printf("[IPC_Dump] BDescriptor count: %d\n", buffer_b_desciptors.size());
+        for (int i = 0; i < buffer_b_desciptors.size(); i++)
+            printf("\t[IPC_Dump] BDescriptor[%d] size: %d, addr: 0x%x\n", i,
+                   buffer_b_desciptors[i].Size(), buffer_b_desciptors[i].Address());
+
+        printf("[IPC_Dump] CDescriptor count: %d\n", buffer_c_desciptors.size());
+        for (int i = 0; i < buffer_c_desciptors.size(); i++)
+            printf("\t[IPC_Dump] CDescriptor[%d] size: %d, addr: 0x%x\n", i,
+                   buffer_c_desciptors[i].size, buffer_c_desciptors[i].Address());
+    }
+
     bool IsDomain() const {
         return domain != nullptr;
     }
