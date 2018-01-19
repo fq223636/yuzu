@@ -10,6 +10,7 @@
 #include "core/hle/service/nvdrv/devices/nvmap.h"
 #include "core/hle/service/nvdrv/interface.h"
 #include "core/hle/service/nvdrv/nvdrv.h"
+#include "core/hle/service/nvdrv/nvmemp.h"
 
 namespace Service {
 namespace Nvidia {
@@ -20,6 +21,7 @@ void InstallInterfaces(SM::ServiceManager& service_manager) {
     auto module_ = std::make_shared<Module>();
     std::make_shared<NVDRV>(module_, "nvdrv")->InstallAsService(service_manager);
     std::make_shared<NVDRV>(module_, "nvdrv:a")->InstallAsService(service_manager);
+    std::make_shared<NVMEMP>()->InstallAsService(service_manager);
     nvdrv = module_;
 }
 
