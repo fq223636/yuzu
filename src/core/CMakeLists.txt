@@ -45,13 +45,17 @@ set(SRCS
             hle/service/apm/apm.cpp
             hle/service/audio/audio.cpp
             hle/service/audio/audout_u.cpp
+            hle/service/fsp/fsp.cpp
+            hle/service/fsp/srv.cpp
             hle/service/hid/hid.cpp
             hle/service/lm/lm.cpp
             hle/service/nvdrv/devices/nvdisp_disp0.cpp
             hle/service/nvdrv/devices/nvhost_as_gpu.cpp
+            hle/service/nvdrv/devices/nvhost_ctrl.cpp
             hle/service/nvdrv/devices/nvmap.cpp
             hle/service/nvdrv/interface.cpp
             hle/service/nvdrv/nvdrv.cpp
+            hle/service/nvdrv/nvmemp.cpp
             hle/service/pctl/pctl.cpp
             hle/service/pctl/pctl_a.cpp
             hle/service/service.cpp
@@ -60,6 +64,8 @@ set(SRCS
             hle/service/time/time.cpp
             hle/service/vi/vi.cpp
             hle/service/vi/vi_m.cpp
+            hle/service/vi/vi_s.cpp
+            hle/service/vi/vi_u.cpp
             hle/shared_page.cpp
             hw/hw.cpp
             hw/lcd.cpp
@@ -134,14 +140,18 @@ set(HEADERS
             hle/service/apm/apm.h
             hle/service/audio/audio.h
             hle/service/audio/audout_u.h
+            hle/service/fsp/fsp.h
+            hle/service/fsp/srv.h
             hle/service/hid/hid.h
             hle/service/lm/lm.h
             hle/service/nvdrv/devices/nvdevice.h
             hle/service/nvdrv/devices/nvdisp_disp0.h
             hle/service/nvdrv/devices/nvhost_as_gpu.h
+            hle/service/nvdrv/devices/nvhost_ctrl.h
             hle/service/nvdrv/devices/nvmap.h
             hle/service/nvdrv/interface.h
             hle/service/nvdrv/nvdrv.h
+            hle/service/nvdrv/nvmemp.h
             hle/service/pctl/pctl.h
             hle/service/pctl/pctl_a.h
             hle/service/service.h
@@ -150,6 +160,8 @@ set(HEADERS
             hle/service/time/time.h
             hle/service/vi/vi.h
             hle/service/vi/vi_m.h
+            hle/service/vi/vi_s.h
+            hle/service/vi/vi_u.h
             hle/shared_page.h
             hw/hw.h
             hw/lcd.h

@@ -34,7 +34,7 @@ private:
         LOG_WARNING(Service, "(STUBBED) called off: 0x%lx, len: 0x%lx", offset, length);
         if (!isFileOpen) {
             IPC::RequestBuilder rb{ctx, 2};
-            rb.Push(0x1F4202); // Temp for now
+            rb.Push(RESULT_SUCCESS); // Temp for now
         }
         _fseeki64(fp, offset, SEEK_SET);
 
@@ -98,7 +98,7 @@ void FSP_SRV::GetGlobalAccessLogMode(Kernel::HLERequestContext& ctx) {
 void FSP_SRV::OpenDataStorageByCurrentProcess(Kernel::HLERequestContext& ctx) {
     IPC::RequestBuilder rb{ctx, 2, 0, 0, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<IStorage>("RomFS.istorage"); // Get actual rom dir and check there
+    rb.PushIpcInterface<IStorage>("D:\\SwitchGames\\SMO\\Clean\\bins\\RomFS.istorage"); // Get actual rom dir and check there
     LOG_WARNING(Service, "(STUBBED) called");
 }
 

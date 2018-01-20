@@ -29,8 +29,8 @@ u32 nvhost_ctrl::NvOsGetConfigU32(const std::vector<u8>& input, std::vector<u8>&
     LOG_WARNING(Service, "(STUBBED) param_str %s", params.param_str);
     LOG_WARNING(Service, "(STUBBED) domain_str %s", params.domain_str);
 
-    if (!strcmp(params.param_str, "NV_MEMORY_PROFILER")) {
-        std::memcpy(&params.config_str, "1\x00", 2);
+    if (!strcmp(params.param_str.data(), "NV_MEMORY_PROFILER")) {
+        std::memcpy(params.config_str.data(), "1", 1);
     } else {
         UNIMPLEMENTED();
     }
