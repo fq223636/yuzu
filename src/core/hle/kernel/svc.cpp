@@ -90,7 +90,8 @@ static ResultCode SendSyncRequest(Handle handle) {
     SharedPtr<SyncObject> session = g_handle_table.Get<SyncObject>(handle);
     if (!session) {
         LOG_ERROR(Kernel_SVC, "called with invalid handle=0x%08X", handle);
-        return ERR_INVALID_HANDLE;
+        return RESULT_SUCCESS;
+        // return ERR_INVALID_HANDLE;
     }
 
     LOG_TRACE(Kernel_SVC, "called handle=0x%08X(%s)", handle, session->GetName().c_str());
@@ -315,7 +316,7 @@ static ResultCode GetInfo(u64* result, u64 info_id, u64 handle, u64 info_sub_id)
         *result = g_current_process->allowed_thread_priority_mask;
         break;
     case GetInfoType::MapRegionBaseAddr:
-        *result = vm_manager.GetAddressSpaceBaseAddr();
+        *result = Memory::HEAP_VADDR;
         break;
     case GetInfoType::MapRegionSize:
         *result = vm_manager.GetAddressSpaceSize();
@@ -912,9 +913,11 @@ void CallSVC(u32 immediate) {
             info->func();
         } else {
             LOG_CRITICAL(Kernel_SVC, "unimplemented SVC function %s(..)", info->name);
+            UNIMPLEMENTED();
         }
     } else {
         LOG_CRITICAL(Kernel_SVC, "unknown SVC function 0x%x", immediate);
+        UNIMPLEMENTED();
     }
 }
 

@@ -98,14 +98,14 @@ void FSP_SRV::GetGlobalAccessLogMode(Kernel::HLERequestContext& ctx) {
 void FSP_SRV::OpenDataStorageByCurrentProcess(Kernel::HLERequestContext& ctx) {
     IPC::RequestBuilder rb{ctx, 2, 0, 0, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<IStorage>("D:\\SwitchGames\\SMO\\Clean\\bins\\RomFS.istorage"); // Get actual rom dir and check there
+    rb.PushIpcInterface<IStorage>("D:\\SwitchGames\\01007EF00011E000_romfs.istorage"); // Get actual rom dir and check there
     LOG_WARNING(Service, "(STUBBED) called");
 }
 
 void FSP_SRV::OpenRomStorage(Kernel::HLERequestContext& ctx) {
     IPC::RequestBuilder rb{ctx, 2, 0, 0, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<IStorage>("RomFS.istorage"); // Get actual rom dir and check there
+    rb.PushIpcInterface<IStorage>("D:\\SwitchGames\\01007EF00011E000_romfs.istorage"); // Get actual rom dir and check there
     LOG_WARNING(Service, "(STUBBED) called");
 }
 

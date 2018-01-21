@@ -66,11 +66,18 @@ private:
         // This function only succeeds - Get that out of the way
         IPC::RequestBuilder rb{ctx, 1};
         rb.Push(RESULT_SUCCESS);
+        // return;
 
         // Read MessageHeader, despite not doing anything with it right now
         MessageHeader header{};
         VAddr addr{ctx.BufferDescriptorX()[0].Address()};
+
+        /*if (ctx.BufferDescriptorX()[0].size. > 0x100) {
+
+            return;
+        }*/
         const VAddr end_addr{addr + ctx.BufferDescriptorX()[0].size};
+
         Memory::ReadBlock(addr, &header, sizeof(MessageHeader));
         addr += sizeof(MessageHeader);
 
@@ -82,9 +89,12 @@ private:
         // Parse out log metadata
         u32 line{};
         std::string message, filename, function;
+
         while (addr < end_addr) {
+
             const Field field{static_cast<Field>(Memory::Read8(addr++))};
             size_t length{Memory::Read8(addr++)};
+
             switch (field) {
             case Field::Message:
                 message = Memory::ReadCString(addr, length);
@@ -99,6 +109,7 @@ private:
                 function = Memory::ReadCString(addr, length);
                 break;
             }
+
             addr += length;
         }
 
@@ -108,20 +119,30 @@ private:
         }
 
         // Format a nicely printable string out of the log metadata
+
         std::string output;
+
         if (filename.size()) {
             output += filename + ':';
         }
+
         if (function.size()) {
             output += function + ':';
         }
+
         if (line) {
             output += std::to_string(line) + ':';
         }
-        if (output.back() == ':') {
+
+        if (output.length() > 0 && output.back() == ':') {
             output += ' ';
         }
+
         output += message;
+
+        FILE* fp = fopen("Log.log", "a+");
+        fwrite(output.c_str(), output.length(), 1, fp);
+        fclose(fp);
 
         LOG_DEBUG(Debug_Emulated, "%s", output.c_str());
     }
