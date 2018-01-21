@@ -37,5 +37,5 @@ ResultVal<std::unique_ptr<FileSys::FileSystemBackend>> OpenFileSystem(Type type,
 /// Registers all Filesystem services with the specified service manager.
 void InstallInterfaces(SM::ServiceManager& service_manager);
 
-} // namespace Filesystem
+} // namespace FileSystem
 } // namespace Service
