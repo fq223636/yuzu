@@ -110,12 +110,20 @@ add_library(core STATIC
     hle/service/nvdrv/devices/nvdisp_disp0.h
     hle/service/nvdrv/devices/nvhost_as_gpu.cpp
     hle/service/nvdrv/devices/nvhost_as_gpu.h
+    hle/service/nvdrv/devices/nvhost_ctrl.cpp
+    hle/service/nvdrv/devices/nvhost_ctrl.h
+    hle/service/nvdrv/devices/nvhost_ctrl_gpu.cpp
+    hle/service/nvdrv/devices/nvhost_ctrl_gpu.h
+    hle/service/nvdrv/devices/nvhost_gpu.cpp
+    hle/service/nvdrv/devices/nvhost_gpu.h
     hle/service/nvdrv/devices/nvmap.cpp
     hle/service/nvdrv/devices/nvmap.h
     hle/service/nvdrv/interface.cpp
     hle/service/nvdrv/interface.h
     hle/service/nvdrv/nvdrv.cpp
     hle/service/nvdrv/nvdrv.h
+    hle/service/nvdrv/nvmemp.cpp
+    hle/service/nvdrv/nvmemp.h
     hle/service/pctl/pctl.cpp
     hle/service/pctl/pctl.h
     hle/service/pctl/pctl_a.cpp
@@ -143,6 +151,10 @@ add_library(core STATIC
     hle/service/vi/vi.h
     hle/service/vi/vi_m.cpp
     hle/service/vi/vi_m.h
+    hle/service/vi/vi_s.cpp
+    hle/service/vi/vi_s.h
+    hle/service/vi/vi_u.cpp
+    hle/service/vi/vi_u.h
     hle/shared_page.cpp
     hle/shared_page.h
     hw/hw.cpp
