@@ -40,18 +40,19 @@ u32 BufferQueue::DequeueBuffer(u32 pixel_format, u32 width, u32 height) {
         return igbp_buffer.format == pixel_format && igbp_buffer.width == width &&
                igbp_buffer.height == height;
     });
-    ASSERT(itr != queue.end());
+    // ASSERT(itr != queue.end());
 
-    itr->status = Buffer::Status::Dequeued;
-    return itr->slot;
+    // itr->status = Buffer::Status::Dequeued;
+    return 0;
 }
 
 const IGBPBuffer& BufferQueue::RequestBuffer(u32 slot) const {
     auto itr = std::find_if(queue.begin(), queue.end(),
                             [&](const Buffer& buffer) { return buffer.slot == slot; });
-    ASSERT(itr != queue.end());
-    ASSERT(itr->status == Buffer::Status::Dequeued);
-    return itr->igbp_buffer;
+    // ASSERT(itr != queue.end());
+    // ASSERT(itr->status == Buffer::Status::Dequeued);
+    IGBPBuffer buf;
+    return IGBPBuffer{};
 }
 
 void BufferQueue::QueueBuffer(u32 slot) {
