@@ -87,8 +87,7 @@ std::shared_ptr<BufferQueue> NVFlinger::GetBufferQueue(u32 id) const {
     auto itr = std::find_if(buffer_queues.begin(), buffer_queues.end(),
                             [&](const auto& queue) { return queue->GetId() == id; });
 
-    ASSERT(itr != buffer_queues.end());
-    return *itr;
+    return std::make_shared<BufferQueue>(0, 0);
 }
 
 Display& NVFlinger::GetDisplay(u64 display_id) {

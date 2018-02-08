@@ -401,7 +401,7 @@ public:
             {0, &IHOSBinderDriver::TransactParcel, "TransactParcel"},
             {1, &IHOSBinderDriver::AdjustRefcount, "AdjustRefcount"},
             {2, &IHOSBinderDriver::GetNativeHandle, "GetNativeHandle"},
-            {3, nullptr, "TransactParcelAuto"},
+            {3, &IHOSBinderDriver::TransactParcel, "TransactParcelAuto"},
         };
         RegisterHandlers(functions);
     }
@@ -445,6 +445,14 @@ private:
             auto response_buffer = response.Serialize();
             Memory::WriteBlock(output_buffer.Address(), response_buffer.data(),
                                output_buffer.Size());
+        }
+        // TransactionId::Connect
+        /*if (transaction == TransactionId::Connect) {
+            IGBPConnectRequestParcel request{input_data};
+            IGBPConnectResponseParcel response{1280, 720};
+            auto response_buffer = response.Serialize();
+            Memory::WriteBlock(output_buffer.Address(), response_buffer.data(),
+                               output_buffer.Size());
         } else if (transaction == TransactionId::SetPreallocatedBuffer) {
             IGBPSetPreallocatedBufferRequestParcel request{input_data};
 
@@ -465,12 +473,12 @@ private:
             Memory::WriteBlock(output_buffer.Address(), response_buffer.data(),
                                output_buffer.Size());
         } else if (transaction == TransactionId::RequestBuffer) {
-            IGBPRequestBufferRequestParcel request{input_data};
+            //IGBPRequestBufferRequestParcel request{input_data};
 
-            auto& buffer = buffer_queue->RequestBuffer(request.slot);
+            //auto& buffer = buffer_queue->RequestBuffer(request.slot);
 
-            IGBPRequestBufferResponseParcel response{buffer};
-            auto response_buffer = response.Serialize();
+            //IGBPRequestBufferResponseParcel response{buffer};
+            //auto response_buffer = response.Serialize();
             Memory::WriteBlock(output_buffer.Address(), response_buffer.data(),
                                output_buffer.Size());
         } else if (transaction == TransactionId::QueueBuffer) {
@@ -494,7 +502,7 @@ private:
                                output_buffer.Size());
         } else {
             ASSERT_MSG(false, "Unimplemented");
-        }
+        }*/
 
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
@@ -523,6 +531,7 @@ private:
         LOG_WARNING(Service_VI, "(STUBBED) called id=%u, unknown=%08X", id, unknown);
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(RESULT_SUCCESS);
+        buffer_queue->GetNativeHandle()->Signal();
         rb.PushCopyObjects(buffer_queue->GetNativeHandle());
     }
 
@@ -664,55 +673,45 @@ void IApplicationDisplayService::CloseDisplay(Kernel::HLERequestContext& ctx) {
 void IApplicationDisplayService::OpenLayer(Kernel::HLERequestContext& ctx) {
     LOG_WARNING(Service_VI, "(STUBBED) called");
     IPC::RequestParser rp{ctx};
-    auto name_buf = rp.PopRaw<std::array<u8, 0x40>>();
-    auto end = std::find(name_buf.begin(), name_buf.end(), '\0');
-
-    std::string display_name(name_buf.begin(), end);
-
-    u64 layer_id = rp.Pop<u64>();
-    u64 aruid = rp.Pop<u64>();
-
+    // auto name_buf = rp.PopRaw<std::array<u8, 0x40>>();
+    auto name_buf = std::array<u8, 0x40>();
     auto& buffer = ctx.BufferDescriptorB()[0];
 
-    u64 display_id = nv_flinger->OpenDisplay(display_name);
-    u32 buffer_queue_id = nv_flinger->GetBufferQueueId(display_id, layer_id);
+    *(u32*)&name_buf[0] = 0x28;         // ParcelDataSize
+    *(u32*)&name_buf[4] = 0x10;         // ParcelDataOffset
+    *(u32*)&name_buf[8] = 0x4;          // ParcelObjectsSize
+    *(u32*)&name_buf[12] = 0x10 + 0x28; // ParcelObjectsOffset
+    *(u32*)&name_buf[16] = 0x2;         // ParcelData
+    *(u32*)&name_buf[20] = 0x1;         // PID Maybe
+    *(u32*)&name_buf[24] = 0x19;        // ID
+    *(u32*)&name_buf[28] = 0;
+    *(u32*)&name_buf[32] = 0;
+    *(u32*)&name_buf[36] = 0;
+    name_buf[40] = 'd';
+    name_buf[41] = 'i';
+    name_buf[42] = 's';
+    name_buf[43] = 'p';
+    name_buf[44] = 'd';
+    name_buf[45] = 'r';
+    name_buf[46] = 'v';
+    name_buf[47] = 0;
+    *(u32*)&name_buf[48] = 0;
+    *(u32*)&name_buf[52] = 0;
+    *(u32*)&name_buf[56] = 0;
 
-    NativeWindow native_window{buffer_queue_id};
-    auto data = native_window.Serialize();
-    Memory::WriteBlock(buffer.Address(), data.data(), data.size());
-
+    Memory::WriteBlock(buffer.Address(), name_buf.data(), name_buf.size());
     IPC::ResponseBuilder rb = rp.MakeBuilder(4, 0, 0);
     rb.Push(RESULT_SUCCESS);
-    rb.Push<u64>(data.size());
+    rb.Push<u64>(0x3c);
 }
 
 void IApplicationDisplayService::CreateStrayLayer(Kernel::HLERequestContext& ctx) {
     LOG_WARNING(Service, "(STUBBED) called");
-
-    IPC::RequestParser rp{ctx};
-    u32 flags = rp.Pop<u32>();
-    rp.Pop<u32>(); // padding
-    u64 display_id = rp.Pop<u64>();
-
-    auto& buffer = ctx.BufferDescriptorB()[0];
-
-    // TODO(Subv): What's the difference between a Stray and a Managed layer?
-
-    u64 layer_id = nv_flinger->CreateLayer(display_id);
-    u32 buffer_queue_id = nv_flinger->GetBufferQueueId(display_id, layer_id);
-
-    NativeWindow native_window{buffer_queue_id};
-    auto data = native_window.Serialize();
-    Memory::WriteBlock(buffer.Address(), data.data(), data.size());
-
-    IPC::ResponseBuilder rb = rp.MakeBuilder(6, 0, 0);
-    rb.Push(RESULT_SUCCESS);
-    rb.Push(layer_id);
-    rb.Push<u64>(data.size());
+    OpenLayer(ctx);
 }
 
 void IApplicationDisplayService::DestroyStrayLayer(Kernel::HLERequestContext& ctx) {
-    LOG_WARNING(Service_VI, "(STUBBED) called");
+    LOG_WARNING(Service, "(STUBBED) called");
 
     IPC::RequestParser rp{ctx};
     u64 layer_id = rp.Pop<u64>();
@@ -722,7 +721,7 @@ void IApplicationDisplayService::DestroyStrayLayer(Kernel::HLERequestContext& ct
 }
 
 void IApplicationDisplayService::SetLayerScalingMode(Kernel::HLERequestContext& ctx) {
-    LOG_WARNING(Service_VI, "(STUBBED) called");
+    LOG_WARNING(Service, "(STUBBED) called");
     IPC::RequestParser rp{ctx};
     u32 scaling_mode = rp.Pop<u32>();
     u64 unknown = rp.Pop<u64>();
@@ -731,19 +730,8 @@ void IApplicationDisplayService::SetLayerScalingMode(Kernel::HLERequestContext& 
     rb.Push(RESULT_SUCCESS);
 }
 
-void IApplicationDisplayService::ListDisplays(Kernel::HLERequestContext& ctx) {
-    IPC::RequestParser rp{ctx};
-    DisplayInfo display_info;
-    auto& buffer = ctx.BufferDescriptorB()[0];
-    Memory::WriteBlock(buffer.Address(), &display_info, sizeof(DisplayInfo));
-    IPC::ResponseBuilder rb = rp.MakeBuilder(4, 0, 0);
-    rb.Push(RESULT_SUCCESS);
-    rb.Push<u64>(1);
-    LOG_WARNING(Service_VI, "(STUBBED) called");
-}
-
 void IApplicationDisplayService::GetDisplayVsyncEvent(Kernel::HLERequestContext& ctx) {
-    LOG_WARNING(Service_VI, "(STUBBED) called");
+    LOG_WARNING(Service, "(STUBBED) called");
     IPC::RequestParser rp{ctx};
     u64 display_id = rp.Pop<u64>();
 
@@ -763,7 +751,7 @@ IApplicationDisplayService::IApplicationDisplayService(
         {102, &IApplicationDisplayService::GetManagerDisplayService, "GetManagerDisplayService"},
         {103, &IApplicationDisplayService::GetIndirectDisplayTransactionService,
          "GetIndirectDisplayTransactionService"},
-        {1000, &IApplicationDisplayService::ListDisplays, "ListDisplays"},
+        {1000, nullptr, "ListDisplays"},
         {1010, &IApplicationDisplayService::OpenDisplay, "OpenDisplay"},
         {1020, &IApplicationDisplayService::CloseDisplay, "CloseDisplay"},
         {2101, &IApplicationDisplayService::SetLayerScalingMode, "SetLayerScalingMode"},
