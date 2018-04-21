@@ -164,7 +164,7 @@ void RasterizerOpenGL::SetupVertexArray(u8* array_ptr, GLintptr buffer_offset) {
 
     // Copy vertex array data
     const u64 data_size{vertex_array_limit.LimitAddress() - vertex_array.StartAddress() + 1};
-    const VAddr data_addr{memory_manager->PhysicalToVirtualAddress(vertex_array.StartAddress())};
+    const VAddr data_addr{memory_manager->GpuToCpuAddress(vertex_array.StartAddress())};
     res_cache.FlushRegion(data_addr, data_size, nullptr);
     Memory::ReadBlock(data_addr, array_ptr, data_size);
 
@@ -215,7 +215,7 @@ void RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr buffer_offset, size
         // Fetch program code from memory
         GLShader::ProgramCode program_code;
         const u64 gpu_address{gpu.regs.code_address.CodeAddress() + shader_config.offset};
-        const VAddr cpu_address{gpu.memory_manager.PhysicalToVirtualAddress(gpu_address)};
+        const VAddr cpu_address{gpu.memory_manager.GpuToCpuAddress(gpu_address)};
         Memory::ReadBlock(cpu_address, program_code.data(), program_code.size() * sizeof(u64));
         GLShader::ShaderSetup setup{std::move(program_code)};
 
@@ -359,7 +359,7 @@ void RasterizerOpenGL::DrawArrays() {
 
         const auto& memory_manager = Core::System().GetInstance().GPU().memory_manager;
         const VAddr index_data_addr{
-            memory_manager->PhysicalToVirtualAddress(regs.index_array.StartAddress())};
+            memory_manager->GpuToCpuAddress(regs.index_array.StartAddress())};
         Memory::ReadBlock(index_data_addr, &buffer_ptr[ptr_pos], index_buffer_size);
 
         index_buffer_offset = buffer_offset + static_cast<GLintptr>(ptr_pos);
@@ -618,7 +618,7 @@ u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, GLuint progr
         buffer_draw_state.enabled = true;
         buffer_draw_state.bindpoint = current_bindpoint + bindpoint;
 
-        VAddr addr = gpu.memory_manager->PhysicalToVirtualAddress(buffer.address);
+        VAddr addr = gpu.memory_manager->GpuToCpuAddress(buffer.address);
         std::vector<u8> data(used_buffer.GetSize() * sizeof(float));
         Memory::ReadBlock(addr, data.data(), data.size());
 
