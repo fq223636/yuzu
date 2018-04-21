@@ -304,7 +304,7 @@ bool SurfaceParams::ExactMatch(const SurfaceParams& other_surface) const {
 }
 
 bool SurfaceParams::CanSubRect(const SurfaceParams& sub_surface) const {
-    return sub_surface.addr >= addr && sub_surface.end <= end &&
+    return sub_surface.addr >= addr && sub_surface.EndAddr() <= EndAddr() &&
            sub_surface.pixel_format == pixel_format && pixel_format != PixelFormat::Invalid &&
            sub_surface.is_tiled == is_tiled && sub_surface.block_height == block_height &&
            sub_surface.component_type == component_type &&
@@ -315,7 +315,7 @@ bool SurfaceParams::CanSubRect(const SurfaceParams& sub_surface) const {
 
 bool SurfaceParams::CanExpand(const SurfaceParams& expanded_surface) const {
     return pixel_format != PixelFormat::Invalid && pixel_format == expanded_surface.pixel_format &&
-           addr <= expanded_surface.end && expanded_surface.addr <= end &&
+           addr <= expanded_surface.EndAddr() && expanded_surface.addr <= EndAddr() &&
            is_tiled == expanded_surface.is_tiled && block_height == expanded_surface.block_height &&
            component_type == expanded_surface.component_type && stride == expanded_surface.stride &&
            (std::max(expanded_surface.addr, addr) - std::min(expanded_surface.addr, addr)) %
@@ -325,7 +325,7 @@ bool SurfaceParams::CanExpand(const SurfaceParams& expanded_surface) const {
 
 bool SurfaceParams::CanTexCopy(const SurfaceParams& texcopy_params) const {
     if (pixel_format == PixelFormat::Invalid || addr > texcopy_params.addr ||
-        end < texcopy_params.end) {
+        EndAddr() < texcopy_params.EndAddr()) {
         return false;
     }
     if (texcopy_params.block_height != block_height ||
@@ -346,7 +346,8 @@ bool CachedSurface::CanFill(const SurfaceParams& dest_surface,
                             SurfaceInterval fill_interval) const {
     if (type == SurfaceType::Fill && IsRegionValid(fill_interval) &&
         boost::icl::first(fill_interval) >= addr &&
-        boost::icl::last_next(fill_interval) <= end && // dest_surface is within our fill range
+        boost::icl::last_next(fill_interval) <=
+            EndAddr() && // dest_surface is within our fill range
         dest_surface.FromInterval(fill_interval).GetInterval() ==
             fill_interval) { // make sure interval is a rectangle in dest surface
         if (fill_size * 8 != dest_surface.GetFormatBpp()) {
@@ -470,7 +471,7 @@ void CachedSurface::LoadGLBuffer(VAddr load_start, VAddr load_end) {
 
     MICROPROFILE_SCOPE(OpenGL_SurfaceLoad);
 
-    ASSERT(load_start >= addr && load_end <= end);
+    ASSERT(load_start >= addr && load_end <= EndAddr());
     const u64 start_offset = load_start - addr;
 
     if (!is_tiled) {
@@ -502,7 +503,7 @@ void CachedSurface::FlushGLBuffer(VAddr flush_start, VAddr flush_end) {
 
     MICROPROFILE_SCOPE(OpenGL_SurfaceFlush);
 
-    ASSERT(flush_start >= addr && flush_end <= end);
+    ASSERT(flush_start >= addr && flush_end <= EndAddr());
     const u64 start_offset = flush_start - addr;
     const u64 end_offset = flush_end - addr;
 
@@ -991,8 +992,7 @@ SurfaceRect_Tuple RasterizerCacheOpenGL::GetSurfaceSubRect(const SurfaceParams& 
 
             SurfaceParams new_params = *surface;
             new_params.addr = std::min(aligned_params.addr, surface->addr);
-            new_params.end = std::max(aligned_params.end, surface->end);
-            new_params.size = new_params.end - new_params.addr;
+            new_params.size = new_params.EndAddr() - new_params.addr;
             new_params.height = static_cast<u32>(
                 new_params.size / aligned_params.BytesInPixels(aligned_params.stride));
             ASSERT(new_params.size % aligned_params.BytesInPixels(aligned_params.stride) == 0);
@@ -1203,7 +1203,8 @@ SurfaceRect_Tuple RasterizerCacheOpenGL::GetTexCopySurface(const SurfaceParams& 
 
 void RasterizerCacheOpenGL::DuplicateSurface(const Surface& src_surface,
                                              const Surface& dest_surface) {
-    ASSERT(dest_surface->addr <= src_surface->addr && dest_surface->end >= src_surface->end);
+    ASSERT(dest_surface->addr <= src_surface->addr &&
+           dest_surface->EndAddr() >= src_surface->EndAddr());
 
     BlitSurfaces(src_surface, src_surface->GetScaledRect(), dest_surface,
                  dest_surface->GetScaledSubRect(*src_surface));
@@ -1254,7 +1255,7 @@ void RasterizerCacheOpenGL::ValidateSurface(const Surface& surface, VAddr addr, 
 
         // Load data from Switch memory
         FlushRegion(params.addr, params.size);
-        surface->LoadGLBuffer(params.addr, params.end);
+        surface->LoadGLBuffer(params.addr, params.EndAddr());
         surface->UploadGLTexture(surface->GetSubRect(params), read_framebuffer.handle,
                                  draw_framebuffer.handle);
         surface->invalid_regions.erase(params.GetInterval());
@@ -1304,7 +1305,7 @@ void RasterizerCacheOpenGL::InvalidateRegion(VAddr addr, u64 size, const Surface
     const SurfaceInterval invalid_interval(addr, addr + size);
 
     if (region_owner != nullptr) {
-        ASSERT(addr >= region_owner->addr && addr + size <= region_owner->end);
+        ASSERT(addr >= region_owner->addr && addr + size <= region_owner->EndAddr());
         // Surfaces can't have a gap
         ASSERT(region_owner->width == region_owner->stride);
         region_owner->invalid_regions.erase(invalid_interval);

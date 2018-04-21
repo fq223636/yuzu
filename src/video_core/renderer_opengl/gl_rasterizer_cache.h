@@ -238,11 +238,10 @@ struct SurfaceParams {
         type = GetFormatType(pixel_format);
         size = !is_tiled ? BytesInPixels(stride * (height - 1) + width)
                          : BytesInPixels(stride * 8 * (height / 8 - 1) + width * 8);
-        end = addr + size;
     }
 
     SurfaceInterval GetInterval() const {
-        return SurfaceInterval::right_open(addr, end);
+        return SurfaceInterval::right_open(addr, EndAddr());
     }
 
     // Returns the outer rectangle containing "interval"
@@ -277,6 +276,10 @@ struct SurfaceParams {
         return pixels * GetFormatBpp(pixel_format) / CHAR_BIT;
     }
 
+    VAddr EndAddr() const {
+        return addr + size;
+    }
+
     bool ExactMatch(const SurfaceParams& other_surface) const;
     bool CanSubRect(const SurfaceParams& sub_surface) const;
     bool CanExpand(const SurfaceParams& expanded_surface) const;
@@ -286,7 +289,6 @@ struct SurfaceParams {
     MathUtil::Rectangle<u32> GetScaledSubRect(const SurfaceParams& sub_surface) const;
 
     VAddr addr = 0;
-    VAddr end = 0;
     u64 size = 0;
 
     u32 width = 0;
