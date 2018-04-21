@@ -17,6 +17,7 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
+#include <boost/optional.hpp>
 #include <glad/glad.h>
 #include "common/assert.h"
 #include "common/common_funcs.h"
@@ -241,7 +242,7 @@ struct SurfaceParams {
     }
 
     SurfaceInterval GetInterval() const {
-        return SurfaceInterval::right_open(addr, EndAddr());
+        return SurfaceInterval::right_open(StartAddr(), EndAddr());
     }
 
     // Returns the outer rectangle containing "interval"
@@ -277,7 +278,11 @@ struct SurfaceParams {
     }
 
     VAddr EndAddr() const {
-        return addr + size;
+        return *start_addr + size;
+    }
+
+    VAddr StartAddr() const {
+        return *start_addr;
     }
 
     bool ExactMatch(const SurfaceParams& other_surface) const;
@@ -288,7 +293,7 @@ struct SurfaceParams {
     MathUtil::Rectangle<u32> GetSubRect(const SurfaceParams& sub_surface) const;
     MathUtil::Rectangle<u32> GetScaledSubRect(const SurfaceParams& sub_surface) const;
 
-    VAddr addr = 0;
+    boost::optional<VAddr> start_addr;
     u64 size = 0;
 
     u32 width = 0;
