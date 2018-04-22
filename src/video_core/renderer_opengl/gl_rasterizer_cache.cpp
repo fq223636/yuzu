@@ -215,27 +215,37 @@ static bool FillSurface(const Surface& surface, const u8* fill_data,
     return {};
 }
 
+VAddr SurfaceParams::CpuStartAddr() const {
+    return *Core::System::GetInstance().GPU().memory_manager->GpuToCpuAddress(gpu_start_addr);
+}
+
 SurfaceParams SurfaceParams::FromInterval(SurfaceInterval interval) const {
     SurfaceParams params = *this;
     const u32 tiled_size = is_tiled ? 8 : 1;
     const u64 stride_tiled_bytes = BytesInPixels(stride * tiled_size);
-    VAddr aligned_start = StartAddr() + Common::AlignDown(boost::icl::first(interval) - StartAddr(),
-                                                          stride_tiled_bytes);
-    VAddr aligned_end = StartAddr() + Common::AlignUp(boost::icl::last_next(interval) - StartAddr(),
-                                                      stride_tiled_bytes);
+    VAddr aligned_start =
+        CpuStartAddr() +
+        Common::AlignDown(boost::icl::first(interval) - CpuStartAddr(), stride_tiled_bytes);
+    VAddr aligned_end =
+        CpuStartAddr() +
+        Common::AlignUp(boost::icl::last_next(interval) - CpuStartAddr(), stride_tiled_bytes);
 
     if (aligned_end - aligned_start > stride_tiled_bytes) {
-        params.start_addr = aligned_start;
+        params.gpu_start_addr =
+            *Core::System::GetInstance().GPU().memory_manager->CpuToGpuAddress(aligned_start);
         params.height = static_cast<u32>((aligned_end - aligned_start) / BytesInPixels(stride));
     } else {
         // 1 row
         ASSERT(aligned_end - aligned_start == stride_tiled_bytes);
         const u64 tiled_alignment = BytesInPixels(is_tiled ? 8 * 8 : 1);
-        aligned_start = StartAddr() + Common::AlignDown(boost::icl::first(interval) - StartAddr(),
-                                                        tiled_alignment);
-        aligned_end = StartAddr() + Common::AlignUp(boost::icl::last_next(interval) - StartAddr(),
-                                                    tiled_alignment);
-        params.start_addr = aligned_start;
+        aligned_start =
+            CpuStartAddr() +
+            Common::AlignDown(boost::icl::first(interval) - CpuStartAddr(), tiled_alignment);
+        aligned_end =
+            CpuStartAddr() +
+            Common::AlignUp(boost::icl::last_next(interval) - CpuStartAddr(), tiled_alignment);
+        params.gpu_start_addr =
+            *Core::System::GetInstance().GPU().memory_manager->CpuToGpuAddress(aligned_start);
         params.width = static_cast<u32>(PixelsInBytes(aligned_end - aligned_start) / tiled_size);
         params.stride = params.width;
         params.height = tiled_size;
@@ -265,13 +275,13 @@ SurfaceInterval SurfaceParams::GetSubRectInterval(MathUtil::Rectangle<u32> unsca
 
     const u32 pixels = (unscaled_rect.GetHeight() - 1) * stride_tiled + unscaled_rect.GetWidth();
 
-    return {StartAddr() + BytesInPixels(pixel_offset),
-            StartAddr() + BytesInPixels(pixel_offset + pixels)};
+    return {CpuStartAddr() + BytesInPixels(pixel_offset),
+            CpuStartAddr() + BytesInPixels(pixel_offset + pixels)};
 }
 
 MathUtil::Rectangle<u32> SurfaceParams::GetSubRect(const SurfaceParams& sub_surface) const {
-    const u32 begin_pixel_index =
-        static_cast<u32>(PixelsInBytes(sub_surface.StartAddr() - StartAddr()));
+    size_t size1 = sub_surface.CpuStartAddr() - CpuStartAddr();
+    const u32 begin_pixel_index = static_cast<u32>(PixelsInBytes(size1));
 
     if (is_tiled) {
         const int x0 = (begin_pixel_index % (stride * 8)) / 8;
@@ -297,38 +307,40 @@ MathUtil::Rectangle<u32> SurfaceParams::GetScaledSubRect(const SurfaceParams& su
 }
 
 bool SurfaceParams::ExactMatch(const SurfaceParams& other_surface) const {
-    return std::tie(other_surface.start_addr, other_surface.width, other_surface.height,
+    return std::tie(other_surface.gpu_start_addr, other_surface.width, other_surface.height,
                     other_surface.stride, other_surface.block_height, other_surface.pixel_format,
                     other_surface.component_type, other_surface.is_tiled) ==
-               std::tie(start_addr, width, height, stride, block_height, pixel_format,
+               std::tie(gpu_start_addr, width, height, stride, block_height, pixel_format,
                         component_type, is_tiled) &&
            pixel_format != PixelFormat::Invalid;
 }
 
 bool SurfaceParams::CanSubRect(const SurfaceParams& sub_surface) const {
-    return sub_surface.StartAddr() >= StartAddr() && sub_surface.EndAddr() <= EndAddr() &&
-           sub_surface.pixel_format == pixel_format && pixel_format != PixelFormat::Invalid &&
-           sub_surface.is_tiled == is_tiled && sub_surface.block_height == block_height &&
+    return sub_surface.CpuStartAddr() >= CpuStartAddr() &&
+           sub_surface.CpuEndAddr() <= CpuEndAddr() && sub_surface.pixel_format == pixel_format &&
+           pixel_format != PixelFormat::Invalid && sub_surface.is_tiled == is_tiled &&
+           sub_surface.block_height == block_height &&
            sub_surface.component_type == component_type &&
-           (sub_surface.StartAddr() - StartAddr()) % BytesInPixels(is_tiled ? 64 : 1) == 0 &&
+           (sub_surface.CpuStartAddr() - CpuStartAddr()) % BytesInPixels(is_tiled ? 64 : 1) == 0 &&
            (sub_surface.stride == stride || sub_surface.height <= (is_tiled ? 8u : 1u)) &&
            GetSubRect(sub_surface).left + sub_surface.width <= stride;
 }
 
 bool SurfaceParams::CanExpand(const SurfaceParams& expanded_surface) const {
     return pixel_format != PixelFormat::Invalid && pixel_format == expanded_surface.pixel_format &&
-           StartAddr() <= expanded_surface.EndAddr() && expanded_surface.StartAddr() <= EndAddr() &&
+           CpuStartAddr() <= expanded_surface.CpuEndAddr() &&
+           expanded_surface.CpuStartAddr() <= CpuEndAddr() &&
            is_tiled == expanded_surface.is_tiled && block_height == expanded_surface.block_height &&
            component_type == expanded_surface.component_type && stride == expanded_surface.stride &&
-           (std::max(expanded_surface.StartAddr(), StartAddr()) -
-            std::min(expanded_surface.StartAddr(), StartAddr())) %
+           (std::max(expanded_surface.CpuStartAddr(), CpuStartAddr()) -
+            std::min(expanded_surface.CpuStartAddr(), CpuStartAddr())) %
                    BytesInPixels(stride * (is_tiled ? 8 : 1)) ==
                0;
 }
 
 bool SurfaceParams::CanTexCopy(const SurfaceParams& texcopy_params) const {
-    if (pixel_format == PixelFormat::Invalid || StartAddr() > texcopy_params.StartAddr() ||
-        EndAddr() < texcopy_params.EndAddr()) {
+    if (pixel_format == PixelFormat::Invalid || CpuStartAddr() > texcopy_params.CpuStartAddr() ||
+        CpuEndAddr() < texcopy_params.CpuEndAddr()) {
         return false;
     }
     if (texcopy_params.block_height != block_height ||
@@ -337,10 +349,13 @@ bool SurfaceParams::CanTexCopy(const SurfaceParams& texcopy_params) const {
 
     if (texcopy_params.width != texcopy_params.stride) {
         const u32 tile_stride = static_cast<u32>(BytesInPixels(stride * (is_tiled ? 8 : 1)));
-        return (texcopy_params.StartAddr() - StartAddr()) % BytesInPixels(is_tiled ? 64 : 1) == 0 &&
+        return (texcopy_params.CpuStartAddr() - CpuStartAddr()) %
+                       BytesInPixels(is_tiled ? 64 : 1) ==
+                   0 &&
                texcopy_params.width % BytesInPixels(is_tiled ? 64 : 1) == 0 &&
                (texcopy_params.height == 1 || texcopy_params.stride == tile_stride) &&
-               ((texcopy_params.StartAddr() - StartAddr()) % tile_stride) + texcopy_params.width <=
+               ((texcopy_params.CpuStartAddr() - CpuStartAddr()) % tile_stride) +
+                       texcopy_params.width <=
                    tile_stride;
     }
     return FromInterval(texcopy_params.GetInterval()).GetInterval() == texcopy_params.GetInterval();
@@ -349,9 +364,9 @@ bool SurfaceParams::CanTexCopy(const SurfaceParams& texcopy_params) const {
 bool CachedSurface::CanFill(const SurfaceParams& dest_surface,
                             SurfaceInterval fill_interval) const {
     if (type == SurfaceType::Fill && IsRegionValid(fill_interval) &&
-        boost::icl::first(fill_interval) >= StartAddr() &&
+        boost::icl::first(fill_interval) >= CpuStartAddr() &&
         boost::icl::last_next(fill_interval) <=
-            EndAddr() && // dest_surface is within our fill range
+            CpuEndAddr() && // dest_surface is within our fill range
         dest_surface.FromInterval(fill_interval).GetInterval() ==
             fill_interval) { // make sure interval is a rectangle in dest surface
         if (fill_size * 8 != dest_surface.GetFormatBpp()) {
@@ -394,10 +409,11 @@ SurfaceInterval SurfaceParams::GetCopyableInterval(const Surface& src_surface) c
         SurfaceRegions(GetInterval() & src_surface->GetInterval()) - src_surface->invalid_regions;
     for (auto& valid_interval : valid_regions) {
         const SurfaceInterval aligned_interval{
-            StartAddr() + Common::AlignUp(boost::icl::first(valid_interval) - StartAddr(),
-                                          BytesInPixels(is_tiled ? 8 * 8 : 1)),
-            StartAddr() + Common::AlignDown(boost::icl::last_next(valid_interval) - StartAddr(),
-                                            BytesInPixels(is_tiled ? 8 * 8 : 1))};
+            CpuStartAddr() + Common::AlignUp(boost::icl::first(valid_interval) - CpuStartAddr(),
+                                             BytesInPixels(is_tiled ? 8 * 8 : 1)),
+            CpuStartAddr() +
+                Common::AlignDown(boost::icl::last_next(valid_interval) - CpuStartAddr(),
+                                  BytesInPixels(is_tiled ? 8 * 8 : 1))};
 
         if (BytesInPixels(is_tiled ? 8 * 8 : 1) > boost::icl::length(valid_interval) ||
             boost::icl::length(aligned_interval) == 0) {
@@ -407,10 +423,11 @@ SurfaceInterval SurfaceParams::GetCopyableInterval(const Surface& src_surface) c
         // Get the rectangle within aligned_interval
         const u32 stride_bytes = static_cast<u32>(BytesInPixels(stride)) * (is_tiled ? 8 : 1);
         SurfaceInterval rect_interval{
-            StartAddr() +
-                Common::AlignUp(boost::icl::first(aligned_interval) - StartAddr(), stride_bytes),
-            StartAddr() + Common::AlignDown(boost::icl::last_next(aligned_interval) - StartAddr(),
-                                            stride_bytes),
+            CpuStartAddr() +
+                Common::AlignUp(boost::icl::first(aligned_interval) - CpuStartAddr(), stride_bytes),
+            CpuStartAddr() +
+                Common::AlignDown(boost::icl::last_next(aligned_interval) - CpuStartAddr(),
+                                  stride_bytes),
         };
         if (boost::icl::first(rect_interval) > boost::icl::last_next(rect_interval)) {
             // 1 row
@@ -441,8 +458,8 @@ void RasterizerCacheOpenGL::CopySurface(const Surface& src_surface, const Surfac
     // This is only called when CanCopy is true, no need to run checks here
     if (src_surface->type == SurfaceType::Fill) {
         // FillSurface needs a 4 bytes buffer
-        const u64 fill_offset =
-            (boost::icl::first(copy_interval) - src_surface->StartAddr()) % src_surface->fill_size;
+        const u64 fill_offset = (boost::icl::first(copy_interval) - src_surface->CpuStartAddr()) %
+                                src_surface->fill_size;
         std::array<u8, 4> fill_buffer;
 
         u64 fill_buff_pos = fill_offset;
@@ -466,7 +483,7 @@ MICROPROFILE_DEFINE(OpenGL_SurfaceLoad, "OpenGL", "Surface Load", MP_RGB(128, 64
 void CachedSurface::LoadGLBuffer(VAddr load_start, VAddr load_end) {
     ASSERT(type != SurfaceType::Fill);
 
-    u8* const texture_src_data = Memory::GetPointer(StartAddr());
+    u8* const texture_src_data = Memory::GetPointer(CpuStartAddr());
     if (texture_src_data == nullptr)
         return;
 
@@ -477,8 +494,8 @@ void CachedSurface::LoadGLBuffer(VAddr load_start, VAddr load_end) {
 
     MICROPROFILE_SCOPE(OpenGL_SurfaceLoad);
 
-    ASSERT(load_start >= StartAddr() && load_end <= EndAddr());
-    const u64 start_offset = load_start - StartAddr();
+    ASSERT(load_start >= CpuStartAddr() && load_end <= CpuEndAddr());
+    const u64 start_offset = load_start - CpuStartAddr();
 
     if (!is_tiled) {
         const u32 bytes_per_pixel{GetFormatBpp() >> 3};
@@ -487,13 +504,13 @@ void CachedSurface::LoadGLBuffer(VAddr load_start, VAddr load_end) {
                     bytes_per_pixel * width * height);
     } else {
         morton_to_gl_fns[static_cast<size_t>(pixel_format)](
-            stride, block_height, height, &gl_buffer[0], StartAddr(), load_start, load_end);
+            stride, block_height, height, &gl_buffer[0], CpuStartAddr(), load_start, load_end);
     }
 }
 
 MICROPROFILE_DEFINE(OpenGL_SurfaceFlush, "OpenGL", "Surface Flush", MP_RGB(128, 192, 64));
 void CachedSurface::FlushGLBuffer(VAddr flush_start, VAddr flush_end) {
-    u8* const dst_buffer = Memory::GetPointer(StartAddr());
+    u8* const dst_buffer = Memory::GetPointer(CpuStartAddr());
     if (dst_buffer == nullptr)
         return;
 
@@ -509,9 +526,9 @@ void CachedSurface::FlushGLBuffer(VAddr flush_start, VAddr flush_end) {
 
     MICROPROFILE_SCOPE(OpenGL_SurfaceFlush);
 
-    ASSERT(flush_start >= StartAddr() && flush_end <= EndAddr());
-    const u64 start_offset = flush_start - StartAddr();
-    const u64 end_offset = flush_end - StartAddr();
+    ASSERT(flush_start >= CpuStartAddr() && flush_end <= CpuEndAddr());
+    const u64 start_offset = flush_start - CpuStartAddr();
+    const u64 end_offset = flush_end - CpuStartAddr();
 
     if (type == SurfaceType::Fill) {
         const u64 coarse_start_offset = start_offset - (start_offset % fill_size);
@@ -531,7 +548,7 @@ void CachedSurface::FlushGLBuffer(VAddr flush_start, VAddr flush_end) {
         std::memcpy(dst_buffer + start_offset, &gl_buffer[start_offset], flush_end - flush_start);
     } else {
         gl_to_morton_fns[static_cast<size_t>(pixel_format)](
-            stride, block_height, height, &gl_buffer[0], StartAddr(), flush_start, flush_end);
+            stride, block_height, height, &gl_buffer[0], CpuStartAddr(), flush_start, flush_end);
     }
 }
 
@@ -915,7 +932,7 @@ void RasterizerCacheOpenGL::ConvertD24S8toABGR(GLuint src_tex,
 
 Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, ScaleMatch match_res_scale,
                                           bool load_if_create) {
-    if (params.StartAddr() == 0 || params.height * params.width == 0) {
+    if (params.GpuStartAddr() == 0 || params.height * params.width == 0) {
         return nullptr;
     }
     // Use GetSurfaceSubRect instead
@@ -946,7 +963,7 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, ScaleMatc
     }
 
     if (load_if_create) {
-        ValidateSurface(surface, params.StartAddr(), params.size);
+        ValidateSurface(surface, params.CpuStartAddr(), params.size);
     }
 
     return surface;
@@ -955,7 +972,7 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, ScaleMatc
 SurfaceRect_Tuple RasterizerCacheOpenGL::GetSurfaceSubRect(const SurfaceParams& params,
                                                            ScaleMatch match_res_scale,
                                                            bool load_if_create) {
-    if (params.StartAddr() == 0 || params.height * params.width == 0) {
+    if (params.GpuStartAddr() == 0 || params.height * params.width == 0) {
         return std::make_tuple(nullptr, MathUtil::Rectangle<u32>{});
     }
 
@@ -997,8 +1014,9 @@ SurfaceRect_Tuple RasterizerCacheOpenGL::GetSurfaceSubRect(const SurfaceParams& 
             aligned_params.UpdateParams();
 
             SurfaceParams new_params = *surface;
-            new_params.start_addr = std::min(aligned_params.StartAddr(), surface->StartAddr());
-            new_params.size = new_params.EndAddr() - new_params.StartAddr();
+            new_params.gpu_start_addr =
+                std::min(aligned_params.GpuStartAddr(), surface->GpuStartAddr());
+            new_params.size = new_params.CpuEndAddr() - new_params.CpuStartAddr();
             new_params.height = static_cast<u32>(
                 new_params.size / aligned_params.BytesInPixels(aligned_params.stride));
             ASSERT(new_params.size % aligned_params.BytesInPixels(aligned_params.stride) == 0);
@@ -1024,7 +1042,7 @@ SurfaceRect_Tuple RasterizerCacheOpenGL::GetSurfaceSubRect(const SurfaceParams& 
         // GetSurface will create the new surface and possibly adjust res_scale if necessary
         surface = GetSurface(new_params, match_res_scale, load_if_create);
     } else if (load_if_create) {
-        ValidateSurface(surface, aligned_params.StartAddr(), aligned_params.size);
+        ValidateSurface(surface, aligned_params.CpuStartAddr(), aligned_params.size);
     }
 
     return std::make_tuple(surface, surface->GetScaledSubRect(params));
@@ -1034,7 +1052,7 @@ Surface RasterizerCacheOpenGL::GetTextureSurface(const Tegra::Texture::FullTextu
     auto& gpu = Core::System::GetInstance().GPU();
 
     SurfaceParams params;
-    params.start_addr = *gpu.memory_manager->GpuToCpuAddress(config.tic.Address());
+    params.gpu_start_addr = config.tic.Address();
     params.width = config.tic.Width();
     params.height = config.tic.Height();
     params.is_tiled = config.tic.IsTiled();
@@ -1051,7 +1069,7 @@ Surface RasterizerCacheOpenGL::GetTextureSurface(const Tegra::Texture::FullTextu
         params.block_height = config.tic.BlockHeight();
     } else {
         // Use the texture-provided stride value if the texture isn't tiled.
-        params.stride = params.PixelsInBytes(config.tic.Pitch());
+        params.stride = static_cast<u32>(params.PixelsInBytes(config.tic.Pitch()));
     }
 
     params.UpdateParams();
@@ -1112,7 +1130,7 @@ SurfaceSurfaceRect_Tuple RasterizerCacheOpenGL::GetFramebufferSurfaces(
     color_params.block_height = Tegra::Texture::TICEntry::DefaultBlockHeight;
     SurfaceParams depth_params = color_params;
 
-    color_params.start_addr = *memory_manager->GpuToCpuAddress(config.Address());
+    color_params.gpu_start_addr = config.Address();
     color_params.pixel_format = SurfaceParams::PixelFormatFromRenderTargetFormat(config.format);
     color_params.component_type = SurfaceParams::ComponentTypeFromRenderTarget(config.format);
     color_params.UpdateParams();
@@ -1185,7 +1203,7 @@ SurfaceRect_Tuple RasterizerCacheOpenGL::GetTexCopySurface(const SurfaceParams& 
         surface_cache, params, ScaleMatch::Ignore);
 
     if (match_surface != nullptr) {
-        ValidateSurface(match_surface, params.StartAddr(), params.size);
+        ValidateSurface(match_surface, params.CpuStartAddr(), params.size);
 
         SurfaceParams match_subrect;
         if (params.width != params.stride) {
@@ -1209,8 +1227,8 @@ SurfaceRect_Tuple RasterizerCacheOpenGL::GetTexCopySurface(const SurfaceParams& 
 
 void RasterizerCacheOpenGL::DuplicateSurface(const Surface& src_surface,
                                              const Surface& dest_surface) {
-    ASSERT(dest_surface->StartAddr() <= src_surface->StartAddr() &&
-           dest_surface->EndAddr() >= src_surface->EndAddr());
+    ASSERT(dest_surface->CpuStartAddr() <= src_surface->CpuStartAddr() &&
+           dest_surface->CpuEndAddr() >= src_surface->CpuEndAddr());
 
     BlitSurfaces(src_surface, src_surface->GetScaledRect(), dest_surface,
                  dest_surface->GetScaledSubRect(*src_surface));
@@ -1260,8 +1278,8 @@ void RasterizerCacheOpenGL::ValidateSurface(const Surface& surface, VAddr addr, 
         }
 
         // Load data from Switch memory
-        FlushRegion(params.StartAddr(), params.size);
-        surface->LoadGLBuffer(params.StartAddr(), params.EndAddr());
+        FlushRegion(params.CpuStartAddr(), params.size);
+        surface->LoadGLBuffer(params.CpuStartAddr(), params.CpuEndAddr());
         surface->UploadGLTexture(surface->GetSubRect(params), read_framebuffer.handle,
                                  draw_framebuffer.handle);
         surface->invalid_regions.erase(params.GetInterval());
@@ -1311,7 +1329,7 @@ void RasterizerCacheOpenGL::InvalidateRegion(VAddr addr, u64 size, const Surface
     const SurfaceInterval invalid_interval(addr, addr + size);
 
     if (region_owner != nullptr) {
-        ASSERT(addr >= region_owner->StartAddr() && addr + size <= region_owner->EndAddr());
+        ASSERT(addr >= region_owner->CpuStartAddr() && addr + size <= region_owner->CpuEndAddr());
         // Surfaces can't have a gap
         ASSERT(region_owner->width == region_owner->stride);
         region_owner->invalid_regions.erase(invalid_interval);
@@ -1325,7 +1343,7 @@ void RasterizerCacheOpenGL::InvalidateRegion(VAddr addr, u64 size, const Surface
             // If cpu is invalidating this region we want to remove it
             // to (likely) mark the memory pages as uncached
             if (region_owner == nullptr && size <= 8) {
-                FlushRegion(cached_surface->StartAddr(), cached_surface->size, cached_surface);
+                FlushRegion(cached_surface->CpuStartAddr(), cached_surface->size, cached_surface);
                 remove_surfaces.emplace(cached_surface);
                 continue;
             }
@@ -1385,7 +1403,7 @@ void RasterizerCacheOpenGL::RegisterSurface(const Surface& surface) {
     }
     surface->registered = true;
     surface_cache.add({surface->GetInterval(), SurfaceSet{surface}});
-    UpdatePagesCachedCount(surface->StartAddr(), surface->size, 1);
+    UpdatePagesCachedCount(surface->CpuStartAddr(), surface->size, 1);
 }
 
 void RasterizerCacheOpenGL::UnregisterSurface(const Surface& surface) {
@@ -1393,7 +1411,7 @@ void RasterizerCacheOpenGL::UnregisterSurface(const Surface& surface) {
         return;
     }
     surface->registered = false;
-    UpdatePagesCachedCount(surface->StartAddr(), surface->size, -1);
+    UpdatePagesCachedCount(surface->CpuStartAddr(), surface->size, -1);
     surface_cache.subtract({surface->GetInterval(), SurfaceSet{surface}});
 }
 

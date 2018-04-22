@@ -242,7 +242,7 @@ struct SurfaceParams {
     }
 
     SurfaceInterval GetInterval() const {
-        return SurfaceInterval::right_open(StartAddr(), EndAddr());
+        return SurfaceInterval::right_open(CpuStartAddr(), CpuEndAddr());
     }
 
     // Returns the outer rectangle containing "interval"
@@ -277,12 +277,18 @@ struct SurfaceParams {
         return pixels * GetFormatBpp(pixel_format) / CHAR_BIT;
     }
 
-    VAddr EndAddr() const {
-        return *start_addr + size;
+    VAddr CpuStartAddr() const;
+
+    VAddr CpuEndAddr() const {
+        return CpuStartAddr() + size;
     }
 
-    VAddr StartAddr() const {
-        return *start_addr;
+    Tegra::GPUVAddr GpuStartAddr() const {
+        return gpu_start_addr;
+    }
+
+    Tegra::GPUVAddr GpuEndAddr() const {
+        return gpu_start_addr + size;
     }
 
     bool ExactMatch(const SurfaceParams& other_surface) const;
@@ -293,7 +299,7 @@ struct SurfaceParams {
     MathUtil::Rectangle<u32> GetSubRect(const SurfaceParams& sub_surface) const;
     MathUtil::Rectangle<u32> GetScaledSubRect(const SurfaceParams& sub_surface) const;
 
-    boost::optional<VAddr> start_addr;
+    Tegra::GPUVAddr gpu_start_addr = 0;
     u64 size = 0;
 
     u32 width = 0;

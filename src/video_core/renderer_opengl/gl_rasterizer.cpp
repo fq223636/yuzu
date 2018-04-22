@@ -520,7 +520,8 @@ bool RasterizerOpenGL::AccelerateDisplay(const Tegra::FramebufferConfig& framebu
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
 
     SurfaceParams src_params;
-    src_params.start_addr = framebuffer_addr;
+    src_params.gpu_start_addr =
+        *Core::System::GetInstance().GPU().memory_manager->CpuToGpuAddress(framebuffer_addr);
     src_params.width = std::min(framebuffer.width, pixel_stride);
     src_params.height = framebuffer.height;
     src_params.stride = pixel_stride;
