@@ -325,39 +325,35 @@ u8* GetPhysicalPointer(PAddr address) {
     return target_pointer;
 }
 
-void RasterizerMarkRegionCached(VAddr start, u64 size, bool cached) {
+void RasterizerMarkRegionCached(GPUVAddr start, u64 size, bool cached) {
     if (start == 0) {
         return;
     }
 
     u64 num_pages = ((start + size - 1) >> PAGE_BITS) - (start >> PAGE_BITS) + 1;
-    VAddr vaddr = start;
+    GPUVAddr paddr = start;
 
-    for (unsigned i = 0; i < num_pages; ++i, vaddr += PAGE_SIZE) {
+    for (unsigned i = 0; i < num_pages; ++i, paddr += PAGE_SIZE) {
+        boost::optional<VAddr> maybe_vaddr =
+            Core::System::GetInstance().GPU().memory_manager->GpuToCpuAddress(paddr);
+        // The GPU <-> CPU virtual memory mapping is not 1:1
+        if (!maybe_vaddr) {
+            continue;
+        }
+        VAddr vaddr = *maybe_vaddr;
+
         PageType& page_type = current_page_table->attributes[vaddr >> PAGE_BITS];
 
         if (cached) {
             // Switch page type to cached if now cached
-            switch (page_type) {
-            case PageType::Unmapped:
-                // It is not necessary for a process to have this region mapped into its address
-                // space, for example, a system module need not have a VRAM mapping.
-                break;
-            case PageType::Memory:
+            if (page_type == PageType::Memory) {
                 page_type = PageType::RasterizerCachedMemory;
                 current_page_table->pointers[vaddr >> PAGE_BITS] = nullptr;
                 break;
-            default:
-                UNREACHABLE();
             }
         } else {
             // Switch page type to uncached if now uncached
-            switch (page_type) {
-            case PageType::Unmapped:
-                // It is not necessary for a process to have this region mapped into its address
-                // space, for example, a system module need not have a VRAM mapping.
-                break;
-            case PageType::RasterizerCachedMemory: {
+            if (page_type == PageType::RasterizerCachedMemory) {
                 u8* pointer = GetPointerFromVMA(vaddr & ~PAGE_MASK);
                 if (pointer == nullptr) {
                     // It's possible that this function has been called while updating the pagetable
@@ -368,13 +364,35 @@ void RasterizerMarkRegionCached(VAddr start, u64 size, bool cached) {
                     page_type = PageType::Memory;
                     current_page_table->pointers[vaddr >> PAGE_BITS] = pointer;
                 }
-                break;
-            }
-            default:
-                UNREACHABLE();
             }
         }
     }
+}
+
+void RasterizerFlushRegion(GPUVAddr start, u32 size) {
+    if (VideoCore::g_renderer == nullptr) {
+        return;
+    }
+
+    VideoCore::g_renderer->Rasterizer()->FlushRegion(start, size);
+}
+
+void RasterizerInvalidateRegion(GPUVAddr start, u32 size) {
+    if (VideoCore::g_renderer == nullptr) {
+        return;
+    }
+
+    VideoCore::g_renderer->Rasterizer()->InvalidateRegion(start, size);
+}
+
+void RasterizerFlushAndInvalidateRegion(GPUVAddr start, u32 size) {
+    // Since pages are unmapped on shutdown after video core is shutdown, the renderer may be
+    // null here
+    if (VideoCore::g_renderer == nullptr) {
+        return;
+    }
+
+    VideoCore::g_renderer->Rasterizer()->FlushAndInvalidateRegion(start, size);
 }
 
 void RasterizerFlushVirtualRegion(VAddr start, u64 size, FlushMode mode) {
@@ -394,19 +412,29 @@ void RasterizerFlushVirtualRegion(VAddr start, u64 size, FlushMode mode) {
 
         VAddr overlap_start = std::max(start, region_start);
         VAddr overlap_end = std::min(end, region_end);
+
+        std::vector<GPUVAddr> gpu_addresses =
+            Core::System::GetInstance().GPU().memory_manager->CpuToGpuAddress(overlap_start);
+
+        if (gpu_addresses.empty()) {
+            return;
+        }
+
         u64 overlap_size = overlap_end - overlap_start;
 
-        auto* rasterizer = VideoCore::g_renderer->Rasterizer();
-        switch (mode) {
-        case FlushMode::Flush:
-            rasterizer->FlushRegion(overlap_start, overlap_size);
-            break;
-        case FlushMode::Invalidate:
-            rasterizer->InvalidateRegion(overlap_start, overlap_size);
-            break;
-        case FlushMode::FlushAndInvalidate:
-            rasterizer->FlushAndInvalidateRegion(overlap_start, overlap_size);
-            break;
+        for (const auto& gpu_address : gpu_addresses) {
+            auto* rasterizer = VideoCore::g_renderer->Rasterizer();
+            switch (mode) {
+            case FlushMode::Flush:
+                rasterizer->FlushRegion(gpu_address, overlap_size);
+                break;
+            case FlushMode::Invalidate:
+                rasterizer->InvalidateRegion(gpu_address, overlap_size);
+                break;
+            case FlushMode::FlushAndInvalidate:
+                rasterizer->FlushAndInvalidateRegion(gpu_address, overlap_size);
+                break;
+            }
         }
     };
 

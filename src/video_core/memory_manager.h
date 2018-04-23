@@ -15,9 +15,6 @@
 
 namespace Tegra {
 
-/// Virtual addresses in the GPU's memory map are 64 bit.
-using GPUVAddr = u64;
-
 class MemoryManager final {
 public:
     MemoryManager() = default;

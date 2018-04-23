@@ -29,9 +29,9 @@ public:
     void DrawArrays() override;
     void NotifyMaxwellRegisterChanged(u32 method) override;
     void FlushAll() override;
-    void FlushRegion(VAddr addr, u64 size) override;
-    void InvalidateRegion(VAddr addr, u64 size) override;
-    void FlushAndInvalidateRegion(VAddr addr, u64 size) override;
+    void FlushRegion(GPUVAddr addr, u64 size) override;
+    void InvalidateRegion(GPUVAddr addr, u64 size) override;
+    void FlushAndInvalidateRegion(GPUVAddr addr, u64 size) override;
     bool AccelerateDisplayTransfer(const void* config) override;
     bool AccelerateTextureCopy(const void* config) override;
     bool AccelerateFill(const void* config) override;

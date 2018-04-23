@@ -42,8 +42,9 @@ using f64 = double; ///< 64-bit floating point
 
 // TODO: It would be nice to eventually replace these with strong types that prevent accidental
 // conversion between each other.
-using VAddr = u64; ///< Represents a pointer in the userspace virtual address space.
-using PAddr = u64; ///< Represents a pointer in the ARM11 physical address space.
+using VAddr = u64;    ///< Represents a pointer in the userspace virtual address space.
+using PAddr = u64;    ///< Represents a pointer in the ARM11 physical address space.
+using GPUVAddr = u64; ///< Represents a virtual address in the GPU's memory map.
 
 using u128 = std::array<std::uint64_t, 2>;
 static_assert(sizeof(u128) == 16, "u128 must be 128 bits wide");

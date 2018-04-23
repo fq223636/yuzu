@@ -164,9 +164,9 @@ void RasterizerOpenGL::SetupVertexArray(u8* array_ptr, GLintptr buffer_offset) {
 
     // Copy vertex array data
     const u64 data_size{vertex_array_limit.LimitAddress() - vertex_array.StartAddress() + 1};
+    res_cache.FlushRegion(vertex_array.StartAddress(), data_size, nullptr);
     const boost::optional<VAddr> data_addr{
         memory_manager->GpuToCpuAddress(vertex_array.StartAddress())};
-    res_cache.FlushRegion(*data_addr, data_size, nullptr);
     Memory::ReadBlock(*data_addr, array_ptr, data_size);
 
     array_ptr += data_size;
@@ -479,17 +479,17 @@ void RasterizerOpenGL::FlushAll() {
     res_cache.FlushAll();
 }
 
-void RasterizerOpenGL::FlushRegion(VAddr addr, u64 size) {
+void RasterizerOpenGL::FlushRegion(GPUVAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.FlushRegion(addr, size);
 }
 
-void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
+void RasterizerOpenGL::InvalidateRegion(GPUVAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.InvalidateRegion(addr, size, nullptr);
 }
 
-void RasterizerOpenGL::FlushAndInvalidateRegion(VAddr addr, u64 size) {
+void RasterizerOpenGL::FlushAndInvalidateRegion(GPUVAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.FlushRegion(addr, size);
     res_cache.InvalidateRegion(addr, size, nullptr);
@@ -512,7 +512,7 @@ bool RasterizerOpenGL::AccelerateFill(const void* config) {
 }
 
 bool RasterizerOpenGL::AccelerateDisplay(const Tegra::FramebufferConfig& framebuffer,
-                                         VAddr framebuffer_addr, u32 pixel_stride,
+                                         GPUVAddr framebuffer_addr, u32 pixel_stride,
                                          ScreenInfo& screen_info) {
     if (framebuffer_addr == 0) {
         return false;
@@ -520,8 +520,8 @@ bool RasterizerOpenGL::AccelerateDisplay(const Tegra::FramebufferConfig& framebu
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
 
     SurfaceParams src_params;
-    src_params.gpu_start_addr =
-        *Core::System::GetInstance().GPU().memory_manager->CpuToGpuAddress(framebuffer_addr);
+    src_params.cpu_addr = framebuffer_addr;
+    src_params.addr = res_cache.TryFindSurfaceAddress(framebuffer_addr).get_value_or(0);
     src_params.width = std::min(framebuffer.width, pixel_stride);
     src_params.height = framebuffer.height;
     src_params.stride = pixel_stride;
