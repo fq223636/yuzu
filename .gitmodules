@@ -22,3 +22,6 @@
 [submodule "unicorn"]
     path = externals/unicorn
     url = https://github.com/yuzu-emu/unicorn
+[submodule "externals/fastc"]
+    path = externals/fastc
+    url = https://github.com/yuzu-emu/FasTC.git
