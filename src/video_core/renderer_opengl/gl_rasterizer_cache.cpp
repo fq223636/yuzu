@@ -9,6 +9,8 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <FasTC/ASTCCompressor.h>
+#include <FasTC/CompressionJob.h>
 #include <boost/optional.hpp>
 #include <boost/range/iterator_range.hpp>
 #include <glad/glad.h>
@@ -28,6 +30,7 @@
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/renderer_opengl/gl_rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_state.h"
+#include "video_core/renderer_opengl/lodepng.h"
 #include "video_core/textures/decoders.h"
 #include "video_core/utils.h"
 #include "video_core/video_core.h"
@@ -55,6 +58,7 @@ static constexpr std::array<FormatTuple, SurfaceParams::MaxPixelFormat> tex_form
     {GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, true}, // DXT23
     {GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, true}, // DXT45
     {GL_COMPRESSED_RED_RGTC1, GL_RED, GL_UNSIGNED_INT_8_8_8_8, true},           // DXN1
+    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, false},                               // ASTC
 }};
 
 static const FormatTuple& GetFormatTuple(PixelFormat pixel_format, ComponentType component_type) {
@@ -97,6 +101,23 @@ void MortonCopy(u32 stride, u32 block_height, u32 height, u8* gl_buffer, Tegra::
         auto data = Tegra::Texture::UnswizzleTexture(
             *gpu.memory_manager->GpuToCpuAddress(base),
             SurfaceParams::TextureFormatFromPixelFormat(format), stride, height, block_height);
+
+        if (format == PixelFormat::ASTC_2D_4X4) {
+            std::vector<u8> data_rgba8;
+            data_rgba8.resize(stride * height * 4);
+            // data.resize(data_rgba8.size());
+            FasTC::DecompressionJob job(FasTC::ECompressionFormat::eCompressionFormat_ASTC4x4,
+                                        data.data(), data_rgba8.data(), stride, height - 4);
+
+            ASTCC::Decompress(job);
+
+            lodepng::encode("C:\\Users\\eric\\Desktop\\fuckedupbeyondrepair.png", data_rgba8,
+                            stride, height);
+
+            std::memcpy(gl_buffer, data_rgba8.data(), data_rgba8.size());
+            return;
+        }
+
         std::memcpy(gl_buffer, data.data(), data.size());
     } else {
         // TODO(bunnei): Assumes the default rendering GOB size of 16 (128 lines). We should check
@@ -118,7 +139,7 @@ static constexpr std::array<void (*)(u32, u32, u32, u8*, Tegra::GPUVAddr, Tegra:
         MortonCopy<true, PixelFormat::R8>,           MortonCopy<true, PixelFormat::RGBA16F>,
         MortonCopy<true, PixelFormat::R11FG11FB10F>, MortonCopy<true, PixelFormat::DXT1>,
         MortonCopy<true, PixelFormat::DXT23>,        MortonCopy<true, PixelFormat::DXT45>,
-        MortonCopy<true, PixelFormat::DXN1>,
+        MortonCopy<true, PixelFormat::DXN1>,         MortonCopy<true, PixelFormat::ASTC_2D_4X4>,
 };
 
 static constexpr std::array<void (*)(u32, u32, u32, u8*, Tegra::GPUVAddr, Tegra::GPUVAddr,
@@ -137,6 +158,7 @@ static constexpr std::array<void (*)(u32, u32, u32, u8*, Tegra::GPUVAddr, Tegra:
         nullptr,
         nullptr,
         nullptr,
+        MortonCopy<false, PixelFormat::ABGR8>,
 };
 
 // Allocate an uninitialized texture of appropriate size and format for the surface
@@ -1038,6 +1060,18 @@ Surface RasterizerCacheOpenGL::GetTextureSurface(const Tegra::Texture::FullTextu
                    params.GetCompresssionFactor();
     params.height = Common::AlignUp(config.tic.Height(), params.GetCompresssionFactor()) /
                     params.GetCompresssionFactor();
+
+    // if (params.pixel_format == PixelFormat::ASTC) {
+    //    boost::optional<VAddr> addr = gpu.memory_manager->GpuToCpuAddress(params.addr);
+    //    ASSERT(addr);
+    //    u32 size = params.width * params.height * 64;
+    //    std::vector<u8> data;
+    //    data.resize(size);
+    //    Memory::ReadBlock(*addr, data.data(), size);
+    //    FILE* fout = fopen("C:\\Users\\eric\\Desktop\\raw.astc", "wb");
+    //    fwrite(data.data(), data.size(), 1, fout);
+    //    fclose(fout);
+    //}
 
     // TODO(Subv): Different types per component are not supported.
     ASSERT(config.tic.r_type.Value() == config.tic.g_type.Value() &&

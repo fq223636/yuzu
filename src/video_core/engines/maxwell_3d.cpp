@@ -279,7 +279,8 @@ Texture::TICEntry Maxwell3D::GetTICEntry(u32 tic_index) const {
                "TIC versions other than BlockLinear or Pitch are unimplemented");
 
     ASSERT_MSG((tic_entry.texture_type == Texture::TextureType::Texture2D) ||
-                   (tic_entry.texture_type == Texture::TextureType::Texture2DNoMipmap),
+                   (tic_entry.texture_type == Texture::TextureType::Texture2DNoMipmap) ||
+                   (tic_entry.texture_type == Texture::TextureType::Texture2DArray),
                "Texture types other than Texture2D are unimplemented");
 
     auto r_type = tic_entry.r_type.Value();

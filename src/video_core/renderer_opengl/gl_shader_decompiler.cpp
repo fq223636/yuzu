@@ -283,13 +283,26 @@ public:
      * @param is_signed Whether to get the register as a signed (or unsigned) integer.
      * @returns GLSL string corresponding to the register as an integer.
      */
-    std::string GetRegisterAsInteger(const Register& reg, unsigned elem = 0,
-                                     bool is_signed = true) {
+    std::string GetRegisterAsInteger(const Register& reg, unsigned elem = 0, bool is_signed = true,
+                                     Register::Size size = Register::Size::Word) {
         const std::string func = GetGLSLConversionFunc(
             GLSLRegister::Type::Float,
             is_signed ? GLSLRegister::Type::Integer : GLSLRegister::Type::UnsignedInteger);
 
-        return func + '(' + GetRegister(reg, elem) + ')';
+        std::string value = func + '(' + GetRegister(reg, elem) + ')';
+
+        switch (size) {
+        case Register::Size::Byte:
+            value = "((" + value + " << 24) >> 24)";
+            break;
+        case Register::Size::Word:
+            break;
+        default:
+            NGLOG_CRITICAL(HW_GPU, "Unimplemented conversion size {}", static_cast<u32>(size));
+            UNREACHABLE();
+        }
+
+        return value;
     }
 
     /**
@@ -752,7 +765,8 @@ private:
         // Decoding failure
         if (!opcode) {
             NGLOG_CRITICAL(HW_GPU, "Unhandled instruction: {0:x}", instr.value);
-            UNREACHABLE();
+            // UNREACHABLE();
+            return offset + 1;
         }
 
         shader.AddLine("// " + std::to_string(offset) + ": " + opcode->GetName());
@@ -860,7 +874,8 @@ private:
                 default:
                     NGLOG_CRITICAL(HW_GPU, "Unhandled MUFU sub op: {0:x}",
                                    static_cast<unsigned>(instr.sub_op.Value()));
-                    UNREACHABLE();
+                    // UNREACHABLE();
+                    return offset + 1;
                 }
                 break;
             }
@@ -887,7 +902,8 @@ private:
             }
             default: {
                 NGLOG_CRITICAL(HW_GPU, "Unhandled arithmetic instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
+                return offset + 1;
             }
             }
             break;
@@ -911,7 +927,8 @@ private:
             }
             default: {
                 NGLOG_CRITICAL(HW_GPU, "Unhandled BFE instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
+                return offset + 1;
             }
             }
 
@@ -949,13 +966,15 @@ private:
                 default:
                     NGLOG_CRITICAL(HW_GPU, "Unimplemented lop32i operation: {}",
                                    static_cast<u32>(instr.alu.lop.operation.Value()));
-                    UNREACHABLE();
+                    // UNREACHABLE();
+                    return offset + 1;
                 }
                 break;
             }
             default: {
                 NGLOG_CRITICAL(HW_GPU, "Unhandled logic instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
+                return offset + 1;
             }
             }
             break;
@@ -997,7 +1016,8 @@ private:
                 break;
             default: {
                 NGLOG_CRITICAL(HW_GPU, "Unhandled shift instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
+                return offset + 1;
             }
             }
             break;
@@ -1013,8 +1033,8 @@ private:
 
             switch (opcode->GetId()) {
             case OpCode::Id::IADD32I:
-                regs.SetRegisterToInteger(instr.gpr0, true, 0, op_a + " + " + op_b, 1, 1,
-                                          instr.iadd32i.saturate != 0);
+                // regs.SetRegisterToInteger(instr.gpr0, true, 0, op_a + " + " + op_b, 1, 1,
+                //                          instr.iadd32i.saturate != 0);
                 break;
             default: {
                 NGLOG_CRITICAL(HW_GPU, "Unhandled ArithmeticIntegerImmediate instruction: {}",
@@ -1044,7 +1064,7 @@ private:
             }
 
             switch (opcode->GetId()) {
-            case OpCode::Id::IADD_C:
+            // case OpCode::Id::IADD_C:
             case OpCode::Id::IADD_R:
             case OpCode::Id::IADD_IMM: {
                 regs.SetRegisterToInteger(instr.gpr0, true, 0, op_a + " + " + op_b, 1, 1,
@@ -1063,7 +1083,8 @@ private:
             default: {
                 NGLOG_CRITICAL(HW_GPU, "Unhandled ArithmeticInteger instruction: {}",
                                opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
+                return offset + 1;
             }
             }
 
@@ -1099,7 +1120,8 @@ private:
             }
             default: {
                 NGLOG_CRITICAL(HW_GPU, "Unhandled FFMA instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
+                return offset + 1;
             }
             }
 
@@ -1108,15 +1130,25 @@ private:
             break;
         }
         case OpCode::Type::Conversion: {
-            ASSERT_MSG(instr.conversion.size == Register::Size::Word, "Unimplemented");
+            switch (instr.conversion.size) {
+            case Register::Size::Byte:
+                break;
+            case Register::Size::Word:
+                break;
+            default:
+                NGLOG_CRITICAL(HW_GPU, "Unimplemented conversion size {}",
+                               static_cast<u32>(instr.conversion.size.Value()));
+                UNREACHABLE();
+            }
+
             ASSERT_MSG(!instr.conversion.negate_a, "Unimplemented");
 
             switch (opcode->GetId()) {
             case OpCode::Id::I2I_R: {
                 ASSERT_MSG(!instr.conversion.selector, "Unimplemented");
 
-                std::string op_a =
-                    regs.GetRegisterAsInteger(instr.gpr20, 0, instr.conversion.is_input_signed);
+                std::string op_a = regs.GetRegisterAsInteger(
+                    instr.gpr20, 0, instr.conversion.is_input_signed, instr.conversion.size);
 
                 if (instr.conversion.abs_a) {
                     op_a = "abs(" + op_a + ')';
@@ -1128,8 +1160,8 @@ private:
             }
             case OpCode::Id::I2F_R: {
                 ASSERT_MSG(!instr.conversion.selector, "Unimplemented");
-                std::string op_a =
-                    regs.GetRegisterAsInteger(instr.gpr20, 0, instr.conversion.is_input_signed);
+                std::string op_a = regs.GetRegisterAsInteger(
+                    instr.gpr20, 0, instr.conversion.is_input_signed, instr.conversion.size);
 
                 if (instr.conversion.abs_a) {
                     op_a = "abs(" + op_a + ')';
@@ -1156,7 +1188,8 @@ private:
                 default:
                     NGLOG_CRITICAL(HW_GPU, "Unimplemented f2f rounding mode {}",
                                    static_cast<u32>(instr.conversion.f2f.rounding.Value()));
-                    UNREACHABLE();
+                    // UNREACHABLE();
+                    return offset + 1;
                     break;
                 }
 
@@ -1189,7 +1222,8 @@ private:
                 default:
                     NGLOG_CRITICAL(HW_GPU, "Unimplemented f2i rounding mode {}",
                                    static_cast<u32>(instr.conversion.f2i.rounding.Value()));
-                    UNREACHABLE();
+                    // UNREACHABLE();
+                    return offset + 1;
                     break;
                 }
 
@@ -1205,7 +1239,8 @@ private:
             }
             default: {
                 NGLOG_CRITICAL(HW_GPU, "Unhandled conversion instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
+                return offset + 1;
             }
             }
             break;
@@ -1241,7 +1276,8 @@ private:
                 default:
                     NGLOG_CRITICAL(HW_GPU, "Unhandled type: {}",
                                    static_cast<unsigned>(instr.ld_c.type.Value()));
-                    UNREACHABLE();
+                    // UNREACHABLE();
+                    return offset + 1;
                 }
                 break;
             }
@@ -1310,11 +1346,22 @@ private:
                 }
                 --shader.scope;
                 shader.AddLine("}");
+
+                // if (stage == Maxwell3D::Regs::ShaderStage::Fragment) {
+                //    shader.AddLine("color.r = " + regs.GetRegisterAsFloat(0) + ';');
+                //    shader.AddLine("color.g = " + regs.GetRegisterAsFloat(1) + ';');
+                //    shader.AddLine("color.b = " + regs.GetRegisterAsFloat(2) + ';');
+                //    shader.AddLine("color.a = " + regs.GetRegisterAsFloat(3) + ';');
+                //}
+
+                // shader.AddLine("return true;");
+
                 break;
             }
             default: {
                 NGLOG_CRITICAL(HW_GPU, "Unhandled memory instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
+                return offset + 1;
             }
             }
             break;
@@ -1535,7 +1582,8 @@ private:
             }
             default: {
                 NGLOG_CRITICAL(HW_GPU, "Unhandled instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
+                return offset + 1;
             }
             }
 
