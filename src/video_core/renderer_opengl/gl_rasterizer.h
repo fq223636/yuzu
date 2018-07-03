@@ -36,8 +36,9 @@ public:
     bool AccelerateDisplayTransfer(const void* config) override;
     bool AccelerateTextureCopy(const void* config) override;
     bool AccelerateFill(const void* config) override;
-    bool AccelerateDisplay(const Tegra::FramebufferConfig& framebuffer, VAddr framebuffer_addr,
-                           u32 pixel_stride, ScreenInfo& screen_info) override;
+    bool AccelerateDisplay(const Tegra::FramebufferConfig& framebuffer,
+                           Tegra::GPUVAddr framebuffer_addr, u32 pixel_stride,
+                           ScreenInfo& screen_info) override;
     bool AccelerateDrawBatch(bool is_indexed) override;
 
     /// OpenGL shader generated for a given Maxwell register state
@@ -53,6 +54,11 @@ public:
     struct FragmentShader {
         OGLShader shader;
     };
+
+    /// Maximum supported size that a constbuffer can have in bytes.
+    static constexpr size_t MaxConstbufferSize = 0x10000;
+    static_assert(MaxConstbufferSize % sizeof(GLvec4) == 0,
+                  "The maximum size of a constbuffer must be a multiple of the size of GLvec4");
 
 private:
     class SamplerInfo {
@@ -104,7 +110,7 @@ private:
                       u32 current_unit, const std::vector<GLShader::SamplerEntry>& entries);
 
     /// Syncs the viewport to match the guest state
-    void SyncViewport(const MathUtil::Rectangle<u32>& surfaces_rect, u16 res_scale);
+    void SyncViewport(const MathUtil::Rectangle<u32>& surfaces_rect);
 
     /// Syncs the clip enabled status to match the guest state
     void SyncClipEnabled();
