@@ -2,6 +2,8 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#pragma optimize("", off)
+
 #include <map>
 #include <set>
 #include <string>
@@ -504,7 +506,6 @@ private:
                      u64 dest_num_components, u64 value_num_components, u64 dest_elem) {
         if (reg == Register::ZeroIndex) {
             LOG_CRITICAL(HW_GPU, "Cannot set Register::ZeroIndex");
-            UNREACHABLE();
             return;
         }
 
@@ -551,7 +552,7 @@ private:
             }
 
             LOG_CRITICAL(HW_GPU, "Unhandled input attribute: {}", static_cast<u32>(attribute));
-            UNREACHABLE();
+            // UNREACHABLE();
         }
 
         return "vec4(0, 0, 0, 0)";
@@ -571,7 +572,7 @@ private:
             }
 
             LOG_CRITICAL(HW_GPU, "Unhandled output attribute: {}", index);
-            UNREACHABLE();
+            // UNREACHABLE();
             return {};
         }
     }
@@ -830,7 +831,7 @@ private:
         // Decoding failure
         if (!opcode) {
             LOG_CRITICAL(HW_GPU, "Unhandled instruction: {0:x}", instr.value);
-            UNREACHABLE();
+            // UNREACHABLE();
             return offset + 1;
         }
 
@@ -966,7 +967,7 @@ private:
             }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled arithmetic instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
             }
             }
             break;
@@ -1162,8 +1163,8 @@ private:
             case OpCode::Id::LOP_C:
             case OpCode::Id::LOP_R:
             case OpCode::Id::LOP_IMM: {
-                ASSERT_MSG(!instr.alu.lop.unk44, "Unimplemented");
-                ASSERT_MSG(instr.alu.lop.pred48 == Pred::UnusedIndex, "Unimplemented");
+                // ASSERT_MSG(!instr.alu.lop.unk44, "Unimplemented");
+                // ASSERT_MSG(instr.alu.lop.pred48 == Pred::UnusedIndex, "Unimplemented");
 
                 if (instr.alu.lop.invert_a)
                     op_a = "~(" + op_a + ')';
@@ -1339,7 +1340,7 @@ private:
             }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled conversion instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
             }
             }
             break;
@@ -1431,7 +1432,7 @@ private:
             }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled memory instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
             }
             }
             break;
