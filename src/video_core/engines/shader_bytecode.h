@@ -457,6 +457,16 @@ union Instruction {
     } bra;
 
     union {
+        BitField<36, 1, u64> product_shift_left;
+        BitField<37, 1, u64> merge;
+        BitField<48, 1, u64> sign_ab;
+        BitField<49, 1, u64> sign_c;
+        BitField<50, 3, u64> mode;
+        BitField<52, 1, u64> high_b;
+        BitField<53, 1, u64> high_a;
+    } xmad;
+
+    union {
         BitField<20, 14, u64> offset;
         BitField<34, 5, u64> index;
     } cbuf34;
@@ -593,6 +603,7 @@ public:
         IntegerSetPredicate,
         PredicateSetPredicate,
         Conversion,
+        Xmad,
         Unknown,
     };
 
@@ -782,10 +793,10 @@ private:
             INST("010010110101----", Id::ISET_C, Type::IntegerSet, "ISET_C"),
             INST("0011011-0101----", Id::ISET_IMM, Type::IntegerSet, "ISET_IMM"),
             INST("0101000010010---", Id::PSETP, Type::PredicateSetPredicate, "PSETP"),
-            INST("0011011-00------", Id::XMAD_IMM, Type::Arithmetic, "XMAD_IMM"),
-            INST("0100111---------", Id::XMAD_CR, Type::Arithmetic, "XMAD_CR"),
-            INST("010100010-------", Id::XMAD_RC, Type::Arithmetic, "XMAD_RC"),
-            INST("0101101100------", Id::XMAD_RR, Type::Arithmetic, "XMAD_RR"),
+            INST("0011011-00------", Id::XMAD_IMM, Type::Xmad, "XMAD_IMM"),
+            INST("0100111---------", Id::XMAD_CR, Type::Xmad, "XMAD_CR"),
+            INST("010100010-------", Id::XMAD_RC, Type::Xmad, "XMAD_RC"),
+            INST("0101101100------", Id::XMAD_RR, Type::Xmad, "XMAD_RR"),
         };
 #undef INST
         std::stable_sort(table.begin(), table.end(), [](const auto& a, const auto& b) {
