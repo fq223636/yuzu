@@ -376,6 +376,8 @@ public:
             return value;
         } else if (type == GLSLRegister::Type::Integer) {
             return "floatBitsToInt(" + value + ')';
+        } else if (type == GLSLRegister::Type::UnsignedInteger) {
+            return "floatBitsToUint(" + value + ')';
         } else {
             UNREACHABLE();
         }
@@ -1628,6 +1630,67 @@ private:
                 regs.SetRegisterToInteger(instr.gpr0, false, 0, predicate + " ? 0xFFFFFFFF : 0", 1,
                                           1);
             }
+            break;
+        }
+        case OpCode::Type::Xmad: {
+            // ASSERT_MSG(!instr.xmad.product_shift_left, "Unimplemented"); // Used by SMO
+            ASSERT_MSG(!instr.xmad.merge, "Unimplemented");
+            ASSERT_MSG(!instr.xmad.sign_ab, "Unimplemented");
+            ASSERT_MSG(!instr.xmad.sign_c, "Unimplemented");
+            // ASSERT_MSG(!instr.xmad.high_b, "Unimplemented"); // Used by SMO
+            ASSERT_MSG(instr.xmad.mode == 0, "Unimplemented");
+
+            std::string op_a = regs.GetRegisterAsInteger(instr.gpr8, 0, instr.xmad.sign_ab);
+            std::string op_b;
+            std::string op_c;
+
+            switch (opcode->GetId()) {
+            case OpCode::Id::XMAD_CR: {
+                op_b += regs.GetUniform(instr.cbuf34.index, instr.cbuf34.offset,
+                                        instr.xmad.sign_ab ? GLSLRegister::Type::Integer
+                                                           : GLSLRegister::Type::UnsignedInteger);
+                op_c += regs.GetRegisterAsInteger(instr.gpr39, 0, instr.xmad.sign_c);
+                break;
+            }
+            case OpCode::Id::XMAD_RR: {
+                op_b += regs.GetRegisterAsInteger(instr.gpr20, 0, instr.xmad.sign_ab);
+                op_c += regs.GetRegisterAsInteger(instr.gpr39, 0, instr.xmad.sign_c);
+                break;
+            }
+            case OpCode::Id::XMAD_RC: {
+                op_b += regs.GetRegisterAsInteger(instr.gpr39, 0, instr.xmad.sign_ab);
+                op_c += regs.GetUniform(instr.cbuf34.index, instr.cbuf34.offset,
+                                        instr.xmad.sign_c ? GLSLRegister::Type::Integer
+                                                          : GLSLRegister::Type::UnsignedInteger);
+                break;
+            }
+            case OpCode::Id::XMAD_IMM: {
+                op_b += '(' + std::to_string(instr.alu.GetSignedImm20_20()) + ')';
+                op_c += regs.GetRegisterAsInteger(instr.gpr39, 0, instr.xmad.sign_c);
+                break;
+            }
+            default: {
+                LOG_CRITICAL(HW_GPU, "Unhandled XMAD instruction: {}", opcode->GetName());
+                UNREACHABLE();
+            }
+            }
+
+            std::string product;
+            if (instr.xmad.high_a) {
+                // TODO(bunnei): Make sure we are doing logical shift or arithmetic shift as
+                // necessary here
+                product = "(((" + op_a + ") >> 16) * " + op_b + ")";
+
+            } else {
+                product = op_a + " * " + op_b;
+            }
+
+            if (instr.xmad.product_shift_left && opcode->GetId() != OpCode::Id::XMAD_RC) {
+                product = '(' + product + " << 16)";
+            }
+
+            regs.SetRegisterToInteger(instr.gpr0, instr.xmad.sign_ab, 0, product + " + " + op_c, 1,
+                                      1);
             break;
         }
         default: {
