@@ -200,6 +200,14 @@ enum class IMinMaxExchange : u64 {
     XHi = 3,
 };
 
+enum class XmadMode : u64 {
+    None,
+    Clo,
+    Chi,
+    Csfu,
+    Cbcc,
+};
+
 enum class FlowCondition : u64 {
     Always = 0xF,
     Fcsm_Tr = 0x1C, // TODO(bunnei): What is this used for?
@@ -227,6 +235,7 @@ union Instruction {
     BitField<48, 16, u64> opcode;
 
     union {
+        BitField<20, 16, u64> imm20_16;
         BitField<20, 19, u64> imm20_19;
         BitField<20, 32, s64> imm20_32;
         BitField<45, 1, u64> negate_b;
@@ -271,6 +280,21 @@ union Instruction {
             // Sign extend the 20-bit value.
             u32 mask = 1U << (20 - 1);
             return static_cast<s32>((immediate ^ mask) - mask);
+        }
+
+        u32 GetUnsignedImm20_20() const {
+            return static_cast<u32>(imm20_19);
+        }
+
+        s32 GetSignedImm20_16() const {
+            u32 immediate = static_cast<u32>(imm20_16 | (negate_imm << 16));
+            // Sign extend the 17-bit value.
+            u32 mask = 1U << (17 - 1);
+            return static_cast<s32>((immediate ^ mask) - mask);
+        }
+
+        u32 GetUnsignedImm20_16() const {
+            return static_cast<u32>(imm20_16);
         }
     } alu;
 
@@ -459,9 +483,9 @@ union Instruction {
     union {
         BitField<36, 1, u64> product_shift_left;
         BitField<37, 1, u64> merge;
-        BitField<48, 1, u64> sign_ab;
-        BitField<49, 1, u64> sign_c;
-        BitField<50, 3, u64> mode;
+        BitField<48, 1, u64> sign_a;
+        BitField<49, 1, u64> sign_b;
+        BitField<50, 3, XmadMode> mode;
         BitField<52, 1, u64> high_b;
         BitField<53, 1, u64> high_a;
     } xmad;
