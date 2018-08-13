@@ -44,6 +44,14 @@ RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& window)
         state.texture_units[i].sampler = texture_samplers[i].sampler.handle;
     }
 
+    // Create SSBOs
+    for (size_t stage = 0; stage < ssbos.size(); ++stage) {
+        for (size_t buffer = 0; buffer < ssbos[stage].size(); ++buffer) {
+            ssbos[stage][buffer].Create();
+            state.draw.const_buffers[stage][buffer].ssbo = ssbos[stage][buffer].handle;
+        }
+    }
+
     GLint ext_num;
     glGetIntegerv(GL_NUM_EXTENSIONS, &ext_num);
     for (GLint i = 0; i < ext_num; i++) {
@@ -180,7 +188,7 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr
 
     // Next available bindpoints to use when uploading the const buffers and textures to the GLSL
     // shaders. The constbuffer bindpoint starts after the shader stage configuration bind points.
-    u32 current_constbuffer_bindpoint = Tegra::Engines::Maxwell3D::Regs::MaxShaderStage;
+    u32 current_constbuffer_bindpoint = 0;
     u32 current_texture_bindpoint = 0;
 
     for (size_t index = 0; index < Maxwell::MaxShaderProgram; ++index) {
@@ -636,50 +644,53 @@ std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(
     // Upload only the enabled buffers from the 16 constbuffers of each shader stage
     const auto& shader_stage = maxwell3d.state.shader_stages[static_cast<size_t>(stage)];
 
+    // Reset all buffer draw state for this stage.
+    for (auto& buffer : state.draw.const_buffers[static_cast<size_t>(stage)]) {
+        buffer.bindpoint = 0;
+        buffer.enabled = false;
+    }
+
     for (u32 bindpoint = 0; bindpoint < entries.size(); ++bindpoint) {
         const auto& used_buffer = entries[bindpoint];
         const auto& buffer = shader_stage.const_buffers[used_buffer.GetIndex()];
+        auto& buffer_draw_state =
+            state.draw.const_buffers[static_cast<size_t>(stage)][used_buffer.GetIndex()];
 
-        if (!buffer.enabled) {
-            continue;
-        }
+        ASSERT_MSG(buffer.enabled, "Attempted to upload disabled constbuffer");
+        buffer_draw_state.enabled = true;
+        buffer_draw_state.bindpoint = current_bindpoint + bindpoint;
 
-        size_t size = 0;
+        boost::optional<VAddr> addr = gpu.memory_manager->GpuToCpuAddress(buffer.address);
 
-        if (used_buffer.IsIndirect()) {
-            // Buffer is accessed indirectly, so upload the entire thing
-            size = buffer.size * sizeof(float);
+        std::vector<u8> data;
+        // if (used_buffer.IsIndirect()) {
+        // Buffer is accessed indirectly, so upload the entire thing
+        data.resize(buffer.size * sizeof(float));
+        //} else {
+        //    // Buffer is accessed directly, upload just what we use
+        //    data.resize(used_buffer.GetSize() * sizeof(float));
+        //}
 
-            if (size > MaxConstbufferSize) {
-                LOG_ERROR(HW_GPU, "indirect constbuffer size {} exceeds maximum {}", size,
-                          MaxConstbufferSize);
-                size = MaxConstbufferSize;
-            }
-        } else {
-            // Buffer is accessed directly, upload just what we use
-            size = used_buffer.GetSize() * sizeof(float);
-        }
+        Memory::ReadBlock(*addr, data.data(), data.size());
 
-        // Align the actual size so it ends up being a multiple of vec4 to meet the OpenGL std140
-        // UBO alignment requirements.
-        size = Common::AlignUp(size, sizeof(GLvec4));
-        ASSERT_MSG(size <= MaxConstbufferSize, "Constbuffer too big");
+        // GLintptr const_buffer_offset;
+        // std::tie(buffer_ptr, buffer_offset, const_buffer_offset) =
+        //    UploadMemory(buffer_ptr, buffer_offset, buffer.address, size,
+        //                 static_cast<size_t>(uniform_buffer_alignment));
 
-        GLintptr const_buffer_offset;
-        std::tie(buffer_ptr, buffer_offset, const_buffer_offset) =
-            UploadMemory(buffer_ptr, buffer_offset, buffer.address, size,
-                         static_cast<size_t>(uniform_buffer_alignment));
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer_draw_state.ssbo);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, data.size(), data.data(), GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-        glBindBufferRange(GL_UNIFORM_BUFFER, current_bindpoint + bindpoint,
-                          stream_buffer.GetHandle(), const_buffer_offset, size);
+        // glBindBufferRange(GL_UNIFORM_BUFFER, current_bindpoint + bindpoint,
+        //                  stream_buffer.GetHandle(), const_buffer_offset, size);
 
         // Now configure the bindpoint of the buffer inside the shader
         const std::string buffer_name = used_buffer.GetName();
-        const GLuint index =
-            glGetProgramResourceIndex(program, GL_UNIFORM_BLOCK, buffer_name.c_str());
-        if (index != GL_INVALID_INDEX) {
-            glUniformBlockBinding(program, index, current_bindpoint + bindpoint);
-        }
+        GLuint index =
+            glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, buffer_name.c_str());
+        if (index != -1)
+            glShaderStorageBlockBinding(program, index, buffer_draw_state.bindpoint);
     }
 
     state.Apply();

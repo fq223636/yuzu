@@ -4,6 +4,8 @@
 
 #pragma once
 
+#pragma optimize("", off)
+
 #include <array>
 #include <map>
 #include <memory>

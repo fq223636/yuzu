@@ -369,8 +369,7 @@ public:
     /// Generates code representing a uniform (C buffer) register, interpreted as the input type.
     std::string GetUniform(u64 index, u64 offset, GLSLRegister::Type type) {
         declr_const_buffers[index].MarkAsUsed(index, offset, stage);
-        std::string value = 'c' + std::to_string(index) + '[' + std::to_string(offset / 4) + "][" +
-                            std::to_string(offset % 4) + ']';
+        std::string value = 'c' + std::to_string(index) + '[' + std::to_string(offset) + ']';
 
         if (type == GLSLRegister::Type::Float) {
             return value;
@@ -387,11 +386,8 @@ public:
                                    GLSLRegister::Type type) {
         declr_const_buffers[index].MarkAsUsedIndirect(index, stage);
 
-        std::string final_offset = "((floatBitsToInt(" + GetRegister(index_reg, 0) + ") + " +
-                                   std::to_string(offset) + ") / 4)";
-
-        std::string value =
-            'c' + std::to_string(index) + '[' + final_offset + " / 4][" + final_offset + " % 4]";
+        std::string value = 'c' + std::to_string(index) + "[(floatBitsToInt(" +
+                            GetRegister(index_reg, 0) + ") + " + std::to_string(offset) + ") / 4]";
 
         if (type == GLSLRegister::Type::Float) {
             return value;
@@ -429,10 +425,9 @@ public:
         declarations.AddNewLine();
 
         for (const auto& entry : GetConstBuffersDeclarations()) {
-            declarations.AddLine("layout(std140) uniform " + entry.GetName());
+            declarations.AddLine("layout(std430) buffer " + entry.GetName());
             declarations.AddLine('{');
-            declarations.AddLine("    vec4 c" + std::to_string(entry.GetIndex()) +
-                                 "[MAX_CONSTBUFFER_ELEMENTS];");
+            declarations.AddLine("    float c" + std::to_string(entry.GetIndex()) + "[];");
             declarations.AddLine("};");
             declarations.AddNewLine();
         }
@@ -1937,8 +1932,7 @@ private:
 }; // namespace Decompiler
 
 std::string GetCommonDeclarations() {
-    return fmt::format("#define MAX_CONSTBUFFER_ELEMENTS {}\n",
-                       RasterizerOpenGL::MaxConstbufferSize / sizeof(GLvec4));
+    return "bool exec_shader();";
 }
 
 boost::optional<ProgramResult> DecompileProgram(const ProgramCode& program_code, u32 main_offset,

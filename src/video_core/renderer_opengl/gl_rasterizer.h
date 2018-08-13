@@ -156,6 +156,9 @@ private:
     OGLVertexArray hw_vao;
 
     std::array<SamplerInfo, GLShader::NumTextureSamplers> texture_samplers;
+    std::array<std::array<OGLBuffer, Tegra::Engines::Maxwell3D::Regs::MaxConstBuffers>,
+               Tegra::Engines::Maxwell3D::Regs::MaxShaderStage>
+        ssbos;
 
     static constexpr size_t STREAM_BUFFER_SIZE = 128 * 1024 * 1024;
     OGLStreamBuffer stream_buffer;
