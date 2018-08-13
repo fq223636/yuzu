@@ -393,6 +393,8 @@ struct SurfaceParams {
             return PixelFormat::Z32F;
         case Tegra::Texture::TextureFormat::Z24S8:
             return PixelFormat::Z24S8;
+        case Tegra::Texture::TextureFormat::Z16:
+            return PixelFormat::Z16;
         case Tegra::Texture::TextureFormat::DXT1:
             return PixelFormat::DXT1;
         case Tegra::Texture::TextureFormat::DXT23:
