@@ -369,8 +369,13 @@ public:
     /// Generates code representing a uniform (C buffer) register, interpreted as the input type.
     std::string GetUniform(u64 index, u64 offset, GLSLRegister::Type type) {
         declr_const_buffers[index].MarkAsUsed(index, offset, stage);
-        std::string value = 'c' + std::to_string(index) + '[' + std::to_string(offset / 4) + "][" +
-                            std::to_string(offset % 4) + ']';
+
+        if (offset >= 0x10000) {
+            LOG_CRITICAL(HW_GPU, "WTFFFFFFFFFFFFFFFFFFFFFFFFFF %d", offset);
+        }
+
+        std::string value = 'c' + std::to_string(index) + "_0[" + std::to_string(offset / 4) +
+                            "][" + std::to_string(offset % 4) + ']';
 
         if (type == GLSLRegister::Type::Float) {
             return value;
@@ -383,15 +388,14 @@ public:
         }
     }
 
-    std::string GetUniformIndirect(u64 index, s64 offset, const Register& index_reg,
-                                   GLSLRegister::Type type) {
+    std::string GetUniformIndirect(u64 index, s64 offset, std::string index_reg,
+                                   GLSLRegister::Type type, size_t cbuf_block) {
         declr_const_buffers[index].MarkAsUsedIndirect(index, stage);
 
-        std::string final_offset = "((floatBitsToInt(" + GetRegister(index_reg, 0) + ") + " +
-                                   std::to_string(offset) + ") / 4)";
+        std::string final_offset = "((" + index_reg + " + " + std::to_string(offset) + ") / 4)";
 
-        std::string value =
-            'c' + std::to_string(index) + '[' + final_offset + " / 4][" + final_offset + " % 4]";
+        std::string value = 'c' + std::to_string(index) + "_" + std::to_string(cbuf_block) + "[" +
+                            final_offset + " / 4][" + final_offset + " % 4]";
 
         if (type == GLSLRegister::Type::Float) {
             return value;
@@ -429,12 +433,15 @@ public:
         declarations.AddNewLine();
 
         for (const auto& entry : GetConstBuffersDeclarations()) {
-            declarations.AddLine("layout(std140) uniform " + entry.GetName());
-            declarations.AddLine('{');
-            declarations.AddLine("    vec4 c" + std::to_string(entry.GetIndex()) +
-                                 "[MAX_CONSTBUFFER_ELEMENTS];");
-            declarations.AddLine("};");
-            declarations.AddNewLine();
+            for (int i = 0; i < 4; ++i) {
+                declarations.AddLine("layout(std140) uniform " + entry.GetName() + '_' +
+                                     std::to_string(i));
+                declarations.AddLine('{');
+                declarations.AddLine("    vec4 c" + std::to_string(entry.GetIndex()) + "_" +
+                                     std::to_string(i) + "[MAX_CONSTBUFFER_ELEMENTS];");
+                declarations.AddLine("};");
+                declarations.AddNewLine();
+            }
         }
         declarations.AddNewLine();
 
@@ -1355,28 +1362,146 @@ private:
             case OpCode::Id::LD_C: {
                 ASSERT_MSG(instr.ld_c.unknown == 0, "Unimplemented");
 
-                std::string op_a =
-                    regs.GetUniformIndirect(instr.cbuf36.index, instr.cbuf36.offset + 0, instr.gpr8,
-                                            GLSLRegister::Type::Float);
-                std::string op_b =
-                    regs.GetUniformIndirect(instr.cbuf36.index, instr.cbuf36.offset + 4, instr.gpr8,
-                                            GLSLRegister::Type::Float);
+                // Add an extra scope and declare the index register inside to prevent
+                // overwriting it in case it is used as an output of the LD instruction.
+                shader.AddLine("{");
+                ++shader.scope;
+                shader.AddLine("uint index_reg = " +
+                               regs.GetRegisterAsInteger(instr.gpr8, 0, false) + " & 0x3FFFF;");
 
-                switch (instr.ld_c.type.Value()) {
-                case Tegra::Shader::UniformType::Single:
-                    regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
-                    break;
+                shader.AddLine("if (index_reg < 0x10000)");
+                shader.AddLine("{");
+                ++shader.scope;
 
-                case Tegra::Shader::UniformType::Double:
-                    regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
-                    regs.SetRegisterToFloat(instr.gpr0.Value() + 1, 0, op_b, 1, 1);
-                    break;
+                {
+                    std::string op_a =
+                        regs.GetUniformIndirect(instr.cbuf36.index, instr.cbuf36.offset + 0,
+                                                "index_reg", GLSLRegister::Type::Float, 0);
 
-                default:
-                    LOG_CRITICAL(HW_GPU, "Unhandled type: {}",
-                                 static_cast<unsigned>(instr.ld_c.type.Value()));
-                    UNREACHABLE();
+                    switch (instr.ld_c.type.Value()) {
+                    case Tegra::Shader::UniformType::Single:
+                        regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
+                        break;
+
+                    case Tegra::Shader::UniformType::Double: {
+                        std::string op_b =
+                            regs.GetUniformIndirect(instr.cbuf36.index, instr.cbuf36.offset + 4,
+                                                    "index_reg", GLSLRegister::Type::Float, 0);
+                        regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
+                        regs.SetRegisterToFloat(instr.gpr0.Value() + 1, 0, op_b, 1, 1);
+                        break;
+                    }
+
+                    default:
+                        LOG_CRITICAL(HW_GPU, "Unhandled type: {}",
+                                     static_cast<unsigned>(instr.ld_c.type.Value()));
+                        UNREACHABLE();
+                    }
                 }
+
+                --shader.scope;
+                shader.AddLine("} else if (index_reg < 0x20000) {");
+                ++shader.scope;
+
+                // DO IT
+                {
+                    std::string op_a = regs.GetUniformIndirect(
+                        instr.cbuf36.index, instr.cbuf36.offset + 0, "(index_reg - 0x10000)",
+                        GLSLRegister::Type::Float, 1);
+
+                    switch (instr.ld_c.type.Value()) {
+                    case Tegra::Shader::UniformType::Single:
+                        regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
+                        break;
+
+                    case Tegra::Shader::UniformType::Double: {
+                        std::string op_b = regs.GetUniformIndirect(
+                            instr.cbuf36.index, instr.cbuf36.offset + 4, "(index_reg - 0x10000)",
+                            GLSLRegister::Type::Float, 1);
+                        regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
+                        regs.SetRegisterToFloat(instr.gpr0.Value() + 1, 0, op_b, 1, 1);
+                        break;
+                    }
+
+                    default:
+                        LOG_CRITICAL(HW_GPU, "Unhandled type: {}",
+                                     static_cast<unsigned>(instr.ld_c.type.Value()));
+                        UNREACHABLE();
+                    }
+                    //-------
+                }
+
+                --shader.scope;
+                shader.AddLine("} else if (index_reg < 0x30000) {");
+                ++shader.scope;
+
+                {
+
+                    // DO IT
+                    std::string op_a = regs.GetUniformIndirect(
+                        instr.cbuf36.index, instr.cbuf36.offset + 0, "(index_reg - 0x20000)",
+                        GLSLRegister::Type::Float, 2);
+
+                    switch (instr.ld_c.type.Value()) {
+                    case Tegra::Shader::UniformType::Single:
+                        regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
+                        break;
+
+                    case Tegra::Shader::UniformType::Double: {
+                        std::string op_b = regs.GetUniformIndirect(
+                            instr.cbuf36.index, instr.cbuf36.offset + 4, "(index_reg - 0x20000)",
+                            GLSLRegister::Type::Float, 2);
+                        regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
+                        regs.SetRegisterToFloat(instr.gpr0.Value() + 1, 0, op_b, 1, 1);
+                        break;
+                    }
+
+                    default:
+                        LOG_CRITICAL(HW_GPU, "Unhandled type: {}",
+                                     static_cast<unsigned>(instr.ld_c.type.Value()));
+                        UNREACHABLE();
+                    }
+                    //-------
+                }
+
+                --shader.scope;
+                shader.AddLine("} else if (index_reg < 0x40000) {");
+                ++shader.scope;
+
+                {
+
+                    // DO IT
+                    std::string op_a = regs.GetUniformIndirect(
+                        instr.cbuf36.index, instr.cbuf36.offset + 0, "(index_reg - 0x30000)",
+                        GLSLRegister::Type::Float, 3);
+
+                    switch (instr.ld_c.type.Value()) {
+                    case Tegra::Shader::UniformType::Single:
+                        regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
+                        break;
+
+                    case Tegra::Shader::UniformType::Double: {
+                        std::string op_b = regs.GetUniformIndirect(
+                            instr.cbuf36.index, instr.cbuf36.offset + 4, "(index_reg - 0x30000)",
+                            GLSLRegister::Type::Float, 3);
+                        regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
+                        regs.SetRegisterToFloat(instr.gpr0.Value() + 1, 0, op_b, 1, 1);
+                        break;
+                    }
+
+                    default:
+                        LOG_CRITICAL(HW_GPU, "Unhandled type: {}",
+                                     static_cast<unsigned>(instr.ld_c.type.Value()));
+                        UNREACHABLE();
+                    }
+                    //-------
+                }
+
+                --shader.scope;
+                shader.AddLine("}");
+                --shader.scope;
+                shader.AddLine("}");
+
                 break;
             }
             case OpCode::Id::ST_A: {
@@ -1636,32 +1761,33 @@ private:
             ASSERT_MSG(!instr.xmad.sign_a, "Unimplemented");
             ASSERT_MSG(!instr.xmad.sign_b, "Unimplemented");
 
-            std::string op_a{regs.GetRegisterAsInteger(instr.gpr8, 0, instr.xmad.sign_a)};
+            const bool is_signed{/*instr.xmad.sign_a == 1*/ true};
+
+            std::string op_a{regs.GetRegisterAsInteger(instr.gpr8, 0, is_signed)};
             std::string op_b;
             std::string op_c;
 
             // TODO(bunnei): Needs to be fixed once op_a or op_b is signed
-            ASSERT_MSG(instr.xmad.sign_a == instr.xmad.sign_b, "Unimplemented");
-            const bool is_signed{instr.xmad.sign_a == 1};
+            // ASSERT_MSG(instr.xmad.sign_a == instr.xmad.sign_b, "Unimplemented");
 
             bool is_merge{};
             switch (opcode->GetId()) {
             case OpCode::Id::XMAD_CR: {
                 is_merge = instr.xmad.merge_56;
                 op_b += regs.GetUniform(instr.cbuf34.index, instr.cbuf34.offset,
-                                        instr.xmad.sign_b ? GLSLRegister::Type::Integer
-                                                          : GLSLRegister::Type::UnsignedInteger);
+                                        is_signed ? GLSLRegister::Type::Integer
+                                                  : GLSLRegister::Type::UnsignedInteger);
                 op_c += regs.GetRegisterAsInteger(instr.gpr39, 0, is_signed);
                 break;
             }
             case OpCode::Id::XMAD_RR: {
                 is_merge = instr.xmad.merge_37;
-                op_b += regs.GetRegisterAsInteger(instr.gpr20, 0, instr.xmad.sign_b);
+                op_b += regs.GetRegisterAsInteger(instr.gpr20, 0, is_signed);
                 op_c += regs.GetRegisterAsInteger(instr.gpr39, 0, is_signed);
                 break;
             }
             case OpCode::Id::XMAD_RC: {
-                op_b += regs.GetRegisterAsInteger(instr.gpr39, 0, instr.xmad.sign_b);
+                op_b += regs.GetRegisterAsInteger(instr.gpr39, 0, is_signed);
                 op_c += regs.GetUniform(instr.cbuf34.index, instr.cbuf34.offset,
                                         is_signed ? GLSLRegister::Type::Integer
                                                   : GLSLRegister::Type::UnsignedInteger);
@@ -1669,7 +1795,7 @@ private:
             }
             case OpCode::Id::XMAD_IMM: {
                 is_merge = instr.xmad.merge_37;
-                op_b += std::to_string(instr.xmad.imm20_16);
+                op_b += std::to_string(instr.alu.GetSignedImm20_20());
                 op_c += regs.GetRegisterAsInteger(instr.gpr39, 0, is_signed);
                 break;
             }
@@ -1681,9 +1807,9 @@ private:
 
             // TODO(bunnei): Ensure this is right with signed operands
             if (instr.xmad.high_a) {
-                op_a = "((" + op_a + ") >> 16)";
+                op_a = "int(uint(" + op_a + ") >> 16)";
             } else {
-                op_a = "((" + op_a + ") & 0xFFFF)";
+                op_a = "int(uint(" + op_a + ") & 0xFFFF)";
             }
 
             std::string src2 = '(' + op_b + ')'; // Preserve original source 2

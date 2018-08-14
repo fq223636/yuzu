@@ -2,6 +2,8 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#pragma optimize("", off)
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -461,7 +463,7 @@ void RasterizerOpenGL::DrawArrays() {
         (sizeof(GLShader::MaxwellUniformData) + uniform_buffer_alignment) * Maxwell::MaxShaderStage;
 
     // Add space for at least 18 constant buffers
-    buffer_size += Maxwell::MaxConstBuffers * (MaxConstbufferSize + uniform_buffer_alignment);
+    buffer_size += Maxwell::MaxConstBuffers * (MaxConstbufferSize + uniform_buffer_alignment) * 4;
 
     u8* buffer_ptr;
     GLintptr buffer_offset;
@@ -636,55 +638,40 @@ std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(
     // Upload only the enabled buffers from the 16 constbuffers of each shader stage
     const auto& shader_stage = maxwell3d.state.shader_stages[static_cast<size_t>(stage)];
 
-    for (u32 bindpoint = 0; bindpoint < entries.size(); ++bindpoint) {
-        const auto& used_buffer = entries[bindpoint];
+    u32 bindpoint = 0;
+    for (const auto& used_buffer : entries) {
         const auto& buffer = shader_stage.const_buffers[used_buffer.GetIndex()];
 
         if (!buffer.enabled) {
             continue;
         }
 
-        size_t size = 0;
+        size_t size = MaxConstbufferSize;
 
-        if (used_buffer.IsIndirect()) {
-            // Buffer is accessed indirectly, so upload the entire thing
-            size = buffer.size * sizeof(float);
+        for (int i = 0; i < 4; ++i) {
 
-            if (size > MaxConstbufferSize) {
-                LOG_ERROR(HW_GPU, "indirect constbuffer size {} exceeds maximum {}", size,
-                          MaxConstbufferSize);
-                size = MaxConstbufferSize;
+            GLintptr const_buffer_offset;
+            std::tie(buffer_ptr, buffer_offset, const_buffer_offset) =
+                UploadMemory(buffer_ptr, buffer_offset, buffer.address + (i * size), size,
+                             static_cast<size_t>(uniform_buffer_alignment));
+
+            glBindBufferRange(GL_UNIFORM_BUFFER, current_bindpoint + bindpoint,
+                              stream_buffer.GetHandle(), const_buffer_offset, size);
+
+            // Now configure the bindpoint of the buffer inside the shader
+            const std::string buffer_name = used_buffer.GetName() + "_" + std::to_string(i);
+            const GLuint index =
+                glGetProgramResourceIndex(program, GL_UNIFORM_BLOCK, buffer_name.c_str());
+            if (index != GL_INVALID_INDEX) {
+                glUniformBlockBinding(program, index, current_bindpoint + bindpoint);
             }
-        } else {
-            // Buffer is accessed directly, upload just what we use
-            size = used_buffer.GetSize() * sizeof(float);
-        }
-
-        // Align the actual size so it ends up being a multiple of vec4 to meet the OpenGL std140
-        // UBO alignment requirements.
-        size = Common::AlignUp(size, sizeof(GLvec4));
-        ASSERT_MSG(size <= MaxConstbufferSize, "Constbuffer too big");
-
-        GLintptr const_buffer_offset;
-        std::tie(buffer_ptr, buffer_offset, const_buffer_offset) =
-            UploadMemory(buffer_ptr, buffer_offset, buffer.address, size,
-                         static_cast<size_t>(uniform_buffer_alignment));
-
-        glBindBufferRange(GL_UNIFORM_BUFFER, current_bindpoint + bindpoint,
-                          stream_buffer.GetHandle(), const_buffer_offset, size);
-
-        // Now configure the bindpoint of the buffer inside the shader
-        const std::string buffer_name = used_buffer.GetName();
-        const GLuint index =
-            glGetProgramResourceIndex(program, GL_UNIFORM_BLOCK, buffer_name.c_str());
-        if (index != GL_INVALID_INDEX) {
-            glUniformBlockBinding(program, index, current_bindpoint + bindpoint);
+            ++bindpoint;
         }
     }
 
     state.Apply();
 
-    return {buffer_ptr, buffer_offset, current_bindpoint + static_cast<u32>(entries.size())};
+    return {buffer_ptr, buffer_offset, current_bindpoint + static_cast<u32>(entries.size() * 4)};
 }
 
 u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, GLuint program, u32 current_unit,
