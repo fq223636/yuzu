@@ -311,6 +311,17 @@ public:
             AlwaysOld = 8,
         };
 
+        enum class StencilOp : u32 {
+            Keep = 1,
+            Zero = 2,
+            Replace = 3,
+            Incr = 4,
+            Decr = 5,
+            Invert = 6,
+            IncrWrap = 7,
+            DecrWrap = 8,
+        };
+
         struct Cull {
             enum class FrontFace : u32 {
                 ClockWise = 0x0900,
@@ -558,11 +569,11 @@ public:
 
                 struct {
                     u32 enable;
-                    u32 front_op_fail;
-                    u32 front_op_zfail;
-                    u32 front_op_zpass;
-                    u32 front_func_func;
-                    u32 front_func_ref;
+                    StencilOp front_op_fail;
+                    StencilOp front_op_zfail;
+                    StencilOp front_op_zpass;
+                    ComparisonOp front_func_func;
+                    s32 front_func_ref;
                     u32 front_func_mask;
                     u32 front_mask;
                 } stencil;
