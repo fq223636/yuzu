@@ -10,13 +10,12 @@
 
 #include "common/common_types.h"
 #include "core/memory.h"
-#include "video_core/memory_manager.h"
 
 template <class T>
 class RasterizerCache : NonCopyable {
 public:
     /// Mark the specified region as being invalidated
-    void InvalidateRegion(Tegra::GPUVAddr region_addr, size_t region_size) {
+    void InvalidateRegion(VAddr region_addr, size_t region_size) {
         for (auto iter = cached_objects.cbegin(); iter != cached_objects.cend();) {
             const auto& object{iter->second};
 
@@ -32,7 +31,7 @@ public:
 
 protected:
     /// Tries to get an object from the cache with the specified address
-    T TryGet(Tegra::GPUVAddr addr) const {
+    T TryGet(VAddr addr) const {
         const auto& search{cached_objects.find(addr)};
         if (search != cached_objects.end()) {
             return search->second;
@@ -42,7 +41,7 @@ protected:
     }
 
     /// Gets a reference to the cache
-    const std::unordered_map<Tegra::GPUVAddr, T>& GetCache() const {
+    const std::unordered_map<VAddr, T>& GetCache() const {
         return cached_objects;
     }
 
@@ -79,9 +78,9 @@ private:
     }
 
     /// Increase/decrease the number of object in pages touching the specified region
-    void UpdatePagesCachedCount(Tegra::GPUVAddr addr, u64 size, int delta) {
-        const u64 page_start{addr >> Tegra::MemoryManager::PAGE_BITS};
-        const u64 page_end{(addr + size) >> Tegra::MemoryManager::PAGE_BITS};
+    void UpdatePagesCachedCount(VAddr addr, u64 size, int delta) {
+        const u64 page_start{addr >> Memory::PAGE_BITS};
+        const u64 page_end{(addr + size) >> Memory::PAGE_BITS};
 
         // Interval maps will erase segments if count reaches 0, so if delta is negative we have to
         // subtract after iterating
@@ -93,10 +92,8 @@ private:
             const auto interval = pair.first & pages_interval;
             const int count = pair.second;
 
-            const Tegra::GPUVAddr interval_start_addr = boost::icl::first(interval)
-                                                        << Tegra::MemoryManager::PAGE_BITS;
-            const Tegra::GPUVAddr interval_end_addr = boost::icl::last_next(interval)
-                                                      << Tegra::MemoryManager::PAGE_BITS;
+            const VAddr interval_start_addr = boost::icl::first(interval) << Memory::PAGE_BITS;
+            const VAddr interval_end_addr = boost::icl::last_next(interval) << Memory::PAGE_BITS;
             const u64 interval_size = interval_end_addr - interval_start_addr;
 
             if (delta > 0 && count == delta)
@@ -111,6 +108,6 @@ private:
             cached_pages.add({pages_interval, delta});
     }
 
-    std::unordered_map<Tegra::GPUVAddr, T> cached_objects;
+    std::unordered_map<VAddr, T> cached_objects;
     PageMap cached_pages;
 };
