@@ -23,7 +23,8 @@ GLuint LoadShader(const char* source, GLenum type) {
         debug_type = "fragment";
         break;
     default:
-        UNREACHABLE();
+        // UNREACHABLE();
+        break;
     }
     GLuint shader_id = glCreateShader(type);
     glShaderSource(shader_id, 1, &source, nullptr);

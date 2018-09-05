@@ -19,7 +19,7 @@ GLintptr OGLBufferCache::UploadMemory(Tegra::GPUVAddr gpu_addr, size_t size, siz
 
     // Cache management is a big overhead, so only cache entries with a given size.
     // TODO: Figure out which size is the best for given games.
-    cache &= size > 4096;
+    cache &= size > 2048;
 
     if (cache) {
         auto entry = TryGet(*cpu_addr);

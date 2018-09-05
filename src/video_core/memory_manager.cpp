@@ -56,7 +56,7 @@ GPUVAddr MemoryManager::MapBufferEx(VAddr cpu_addr, GPUVAddr gpu_addr, u64 size)
     for (u64 offset = 0; offset < size; offset += PAGE_SIZE) {
         VAddr& slot = PageSlot(gpu_addr + offset);
 
-        ASSERT(slot == static_cast<u64>(PageStatus::Allocated));
+        // ASSERT(slot == static_cast<u64>(PageStatus::Allocated));
         slot = cpu_addr + offset;
     }
 

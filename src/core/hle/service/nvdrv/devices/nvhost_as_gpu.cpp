@@ -131,8 +131,8 @@ u32 nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8>& ou
     }
 
     // Create a new mapping entry for this operation.
-    ASSERT_MSG(buffer_mappings.find(params.offset) == buffer_mappings.end(),
-               "Offset is already mapped");
+    // ASSERT_MSG(buffer_mappings.find(params.offset) == buffer_mappings.end(),
+    //           "Offset is already mapped");
 
     BufferMapping mapping{};
     mapping.nvmap_handle = params.nvmap_handle;

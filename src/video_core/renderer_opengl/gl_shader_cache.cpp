@@ -73,7 +73,7 @@ CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
         break;
     default:
         LOG_CRITICAL(HW_GPU, "Unimplemented program_type={}", static_cast<u32>(program_type));
-        UNREACHABLE();
+        // UNREACHABLE();
         return;
     }
 

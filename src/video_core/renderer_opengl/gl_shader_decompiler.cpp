@@ -2,6 +2,8 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#pragma optimize("", off)
+
 #include <map>
 #include <set>
 #include <string>
@@ -507,7 +509,6 @@ private:
                      u64 dest_num_components, u64 value_num_components, u64 dest_elem) {
         if (reg == Register::ZeroIndex) {
             LOG_CRITICAL(HW_GPU, "Cannot set Register::ZeroIndex");
-            UNREACHABLE();
             return;
         }
 
@@ -558,7 +559,7 @@ private:
             }
 
             LOG_CRITICAL(HW_GPU, "Unhandled input attribute: {}", static_cast<u32>(attribute));
-            UNREACHABLE();
+            // UNREACHABLE();
         }
 
         return "vec4(0, 0, 0, 0)";
@@ -578,7 +579,7 @@ private:
             }
 
             LOG_CRITICAL(HW_GPU, "Unhandled output attribute: {}", index);
-            UNREACHABLE();
+            // UNREACHABLE();
             return {};
         }
     }
@@ -888,7 +889,7 @@ private:
         // TEXS has two destination registers and a swizzle. The first two elements in the swizzle
         // go into gpr0+0 and gpr0+1, and the rest goes into gpr28+0 and gpr28+1
 
-        ASSERT_MSG(instr.texs.nodep == 0, "TEXS nodep not implemented");
+        // ASSERT_MSG(instr.texs.nodep == 0, "TEXS nodep not implemented");
 
         size_t written_components = 0;
         for (u32 component = 0; component < 4; ++component) {
@@ -989,7 +990,7 @@ private:
         // Decoding failure
         if (!opcode) {
             LOG_CRITICAL(HW_GPU, "Unhandled instruction: {0:x}", instr.value);
-            UNREACHABLE();
+            // UNREACHABLE();
             return offset + 1;
         }
 
@@ -1041,13 +1042,14 @@ private:
             case OpCode::Id::FMUL_R:
             case OpCode::Id::FMUL_IMM: {
                 // FMUL does not have 'abs' bits and only the second operand has a 'neg' bit.
-                ASSERT_MSG(instr.fmul.tab5cb8_2 == 0, "FMUL tab5cb8_2({}) is not implemented",
-                           instr.fmul.tab5cb8_2.Value());
-                ASSERT_MSG(instr.fmul.tab5c68_1 == 0, "FMUL tab5cb8_1({}) is not implemented",
-                           instr.fmul.tab5c68_1.Value());
-                ASSERT_MSG(instr.fmul.tab5c68_0 == 1, "FMUL tab5cb8_0({}) is not implemented",
-                           instr.fmul.tab5c68_0
-                               .Value()); // SMO typical sends 1 here which seems to be the default
+                // ASSERT_MSG(instr.fmul.tab5cb8_2 == 0, "FMUL tab5cb8_2({}) is not implemented",
+                //           instr.fmul.tab5cb8_2.Value());
+                // ASSERT_MSG(instr.fmul.tab5c68_1 == 0, "FMUL tab5cb8_1({}) is not implemented",
+                //           instr.fmul.tab5c68_1.Value());
+                // ASSERT_MSG(instr.fmul.tab5c68_0 == 1, "FMUL tab5cb8_0({}) is not implemented",
+                //           instr.fmul.tab5c68_0
+                //               .Value()); // SMO typical sends 1 here which seems to be the
+                //               default
                 ASSERT_MSG(instr.fmul.cc == 0, "FMUL cc is not implemented");
 
                 op_b = GetOperandAbsNeg(op_b, false, instr.fmul.negate_b);
@@ -1688,6 +1690,11 @@ private:
                 std::string coord{};
 
                 switch (instr.tex.texture_type) {
+                case Tegra::Shader::TextureType::Texture1D: {
+                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
+                    coord = "float coords = " + x + ';';
+                    break;
+                }
                 case Tegra::Shader::TextureType::Texture2D: {
                     std::string x = regs.GetRegisterAsFloat(instr.gpr8);
                     std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
@@ -1755,27 +1762,29 @@ private:
                     break;
                 }
                 case Tegra::Shader::TextureType::Texture3D: {
-                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                    std::string y = regs.GetRegisterAsFloat(instr.gpr20);
-                    std::string z = regs.GetRegisterAsFloat(instr.gpr20.Value() + 1);
-                    coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
-                    break;
-                }
-                case Tegra::Shader::TextureType::TextureCube: {
-                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                    std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
-                    std::string z = regs.GetRegisterAsFloat(instr.gpr20);
-                    coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
-                    break;
+                    // std::string x = regs.GetRegisterAsFloat(instr.gpr8);
+                    // std::string y = regs.GetRegisterAsFloat(instr.gpr20);
+                    // std::string z = regs.GetRegisterAsFloat(instr.gpr20.Value() + 1);
+                    // coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
+                    WriteTexsInstruction(instr, "", "vec4(0.5,0.5,0.5,0.5)");
+                    return offset + 1;
                 }
                 default:
                     LOG_CRITICAL(HW_GPU, "Unhandled texture type {}",
                                  static_cast<u32>(instr.texs.GetTextureType()));
-                    UNREACHABLE();
+                    // UNREACHABLE();
+
+                    const std::string op_a = regs.GetRegisterAsFloat(instr.gpr8);
+                    const std::string op_b = regs.GetRegisterAsFloat(instr.gpr20);
+                    const std::string sampler =
+                        GetSampler(instr.sampler, Tegra::Shader::TextureType::Texture2D, false);
+                    coord = "vec2 coords = vec2(" + op_a + ", " + op_b + ");";
+                    const std::string texture = "texture(" + sampler + ", coords)";
+                    WriteTexsInstruction(instr, coord, texture);
+                    return offset + 1;
                 }
                 const std::string sampler = GetSampler(instr.sampler, instr.texs.GetTextureType(),
                                                        instr.texs.IsArrayTexture());
-
                 const std::string texture = "texture(" + sampler + ", coords)";
                 WriteTexsInstruction(instr, coord, texture);
                 break;
@@ -1863,7 +1872,7 @@ private:
             }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled memory instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
             }
             }
             break;
@@ -2214,7 +2223,6 @@ private:
                 ASSERT_MSG(instr.ipa.sample_mode == Tegra::Shader::IpaSampleMode::Default,
                            "Unhandled IPA sample mode: {}",
                            static_cast<u32>(instr.ipa.sample_mode.Value()));
-                ASSERT_MSG(instr.ipa.saturate == 0, "IPA saturate not implemented");
                 switch (instr.ipa.interp_mode) {
                 case Tegra::Shader::IpaInterpMode::Linear:
                     if (stage == Maxwell3D::Regs::ShaderStage::Fragment &&
@@ -2236,6 +2244,7 @@ private:
                     } else {
                         regs.SetRegisterToInputAttibute(reg, attribute.element, attribute.index);
                     }
+
                     break;
                 case Tegra::Shader::IpaInterpMode::Perspective:
                     regs.SetRegisterToInputAttibute(reg, attribute.element, attribute.index);
@@ -2243,8 +2252,12 @@ private:
                 default:
                     LOG_CRITICAL(HW_GPU, "Unhandled IPA mode: {}",
                                  static_cast<u32>(instr.ipa.interp_mode.Value()));
-                    UNREACHABLE();
+                    // UNREACHABLE();
                     regs.SetRegisterToInputAttibute(reg, attribute.element, attribute.index);
+                }
+
+                if (instr.ipa.saturate) {
+                    regs.SetRegisterToFloat(reg, 0, regs.GetRegisterAsFloat(reg), 1, 1, true);
                 }
 
                 break;
