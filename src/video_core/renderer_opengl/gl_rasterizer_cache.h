@@ -125,6 +125,8 @@ struct SurfaceParams {
         case Tegra::Texture::TextureType::Texture2D:
         case Tegra::Texture::TextureType::Texture2DNoMipmap:
             return SurfaceTarget::Texture2D;
+        case Tegra::Texture::TextureType::TextureCubemap:
+            return SurfaceTarget::TextureCubemap;
         case Tegra::Texture::TextureType::Texture1DArray:
             return SurfaceTarget::Texture1DArray;
         case Tegra::Texture::TextureType::Texture2DArray:
@@ -658,13 +660,18 @@ struct SurfaceParams {
     /// Returns the rectangle corresponding to this surface
     MathUtil::Rectangle<u32> GetRect() const;
 
-    /// Returns the size of this surface in bytes, adjusted for compression
-    size_t SizeInBytes() const {
+    /// Returns the size of this surface as a 2D texture in bytes, adjusted for compression
+    size_t SizeInBytes2D() const {
         const u32 compression_factor{GetCompressionFactor(pixel_format)};
         ASSERT(width % compression_factor == 0);
         ASSERT(height % compression_factor == 0);
         return (width / compression_factor) * (height / compression_factor) *
-               GetFormatBpp(pixel_format) * depth / CHAR_BIT;
+               GetFormatBpp(pixel_format) / CHAR_BIT;
+    }
+
+    /// Returns the total size of this surface in bytes, adjusted for compression
+    size_t SizeInBytesTotal() const {
+        return SizeInBytes2D() * faces * depth;
     }
 
     /// Creates SurfaceParams from a texture configuration
@@ -692,9 +699,11 @@ struct SurfaceParams {
     SurfaceType type;
     u32 width;
     u32 height;
+    u32 faces;
     u32 depth;
     u32 unaligned_height;
-    size_t size_in_bytes;
+    size_t size_in_bytes_total;
+    size_t size_in_bytes_2d;
     SurfaceTarget target;
 };
 
@@ -728,7 +737,7 @@ public:
     }
 
     size_t GetSizeInBytes() const {
-        return params.size_in_bytes;
+        return params.size_in_bytes_total;
     }
 
     const OGLTexture& Texture() const {

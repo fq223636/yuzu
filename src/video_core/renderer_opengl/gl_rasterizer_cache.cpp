@@ -71,7 +71,9 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
         break;
     }
 
-    params.size_in_bytes = params.SizeInBytes();
+    params.faces = params.target == SurfaceTarget::TextureCubemap ? 6 : 1;
+    params.size_in_bytes_total = params.SizeInBytesTotal();
+    params.size_in_bytes_2d = params.SizeInBytes2D();
     return params;
 }
 
@@ -89,7 +91,9 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     params.unaligned_height = config.height;
     params.target = SurfaceTarget::Texture2D;
     params.depth = 1;
-    params.size_in_bytes = params.SizeInBytes();
+    params.faces = 1;
+    params.size_in_bytes_total = params.SizeInBytesTotal();
+    params.size_in_bytes_2d = params.SizeInBytes2D();
     return params;
 }
 
@@ -108,7 +112,9 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     params.unaligned_height = zeta_height;
     params.target = SurfaceTarget::Texture2D;
     params.depth = 1;
-    params.size_in_bytes = params.SizeInBytes();
+    params.faces = 1;
+    params.size_in_bytes_total = params.SizeInBytesTotal();
+    params.size_in_bytes_2d = params.SizeInBytes2D();
     return params;
 }
 
@@ -478,6 +484,13 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
             glTexStorage2D(SurfaceTargetToGL(params.target), 1, format_tuple.internal_format,
                            rect.GetWidth(), rect.GetHeight());
             break;
+        case SurfaceParams::SurfaceTarget::TextureCubemap:
+            for (size_t face = 0; face < params.faces; ++face) {
+                glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, format_tuple.internal_format,
+                             rect.GetWidth(), rect.GetHeight(), 0, format_tuple.format,
+                             format_tuple.type, nullptr);
+            }
+            break;
         case SurfaceParams::SurfaceTarget::Texture3D:
         case SurfaceParams::SurfaceTarget::Texture2DArray:
             glTexStorage3D(SurfaceTargetToGL(params.target), 1, format_tuple.internal_format,
@@ -575,6 +588,8 @@ void CachedSurface::LoadGLBuffer() {
 
     const u32 bytes_per_pixel = GetGLBytesPerPixel(params.pixel_format);
     const u32 copy_size = params.width * params.height * bytes_per_pixel;
+    const size_t copy_count = params.faces * params.depth;
+    const size_t total_size = copy_size * copy_count;
 
     MICROPROFILE_SCOPE(OpenGL_SurfaceLoad);
 
@@ -616,9 +631,6 @@ void CachedSurface::UploadGLTexture(GLuint read_fb_handle, GLuint draw_fb_handle
 
     MICROPROFILE_SCOPE(OpenGL_TextureUL);
 
-    ASSERT(gl_buffer.size() == static_cast<size_t>(params.width) * params.height *
-                                   GetGLBytesPerPixel(params.pixel_format) * params.depth);
-
     const auto& rect{params.GetRect()};
 
     // Load data from memory to the surface
@@ -652,15 +664,24 @@ void CachedSurface::UploadGLTexture(GLuint read_fb_handle, GLuint draw_fb_handle
             glCompressedTexImage2D(
                 SurfaceTargetToGL(params.target), 0, tuple.internal_format,
                 static_cast<GLsizei>(params.width), static_cast<GLsizei>(params.height), 0,
-                static_cast<GLsizei>(params.size_in_bytes), &gl_buffer[buffer_offset]);
+                static_cast<GLsizei>(params.size_in_bytes_2d), &gl_buffer[buffer_offset]);
             break;
         case SurfaceParams::SurfaceTarget::Texture3D:
         case SurfaceParams::SurfaceTarget::Texture2DArray:
             glCompressedTexImage3D(
                 SurfaceTargetToGL(params.target), 0, tuple.internal_format,
                 static_cast<GLsizei>(params.width), static_cast<GLsizei>(params.height),
-                static_cast<GLsizei>(params.depth), 0, static_cast<GLsizei>(params.size_in_bytes),
-                &gl_buffer[buffer_offset]);
+                static_cast<GLsizei>(params.depth), 0,
+                static_cast<GLsizei>(params.size_in_bytes_total), &gl_buffer[buffer_offset]);
+            break;
+        case SurfaceParams::SurfaceTarget::TextureCubemap:
+            for (size_t face = 0; face < params.faces; ++face) {
+                glCompressedTexImage2D(
+                    GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, tuple.internal_format,
+                    static_cast<GLsizei>(params.width), static_cast<GLsizei>(params.height), 0,
+                    static_cast<GLsizei>(params.size_in_bytes_2d), &gl_buffer[buffer_offset]);
+                buffer_offset += params.size_in_bytes_2d;
+            }
             break;
         default:
             LOG_CRITICAL(Render_OpenGL, "Unimplemented surface target={}",
@@ -668,8 +689,8 @@ void CachedSurface::UploadGLTexture(GLuint read_fb_handle, GLuint draw_fb_handle
             UNREACHABLE();
             glCompressedTexImage2D(
                 GL_TEXTURE_2D, 0, tuple.internal_format, static_cast<GLsizei>(params.width),
-                static_cast<GLsizei>(params.height), 0, static_cast<GLsizei>(params.size_in_bytes),
-                &gl_buffer[buffer_offset]);
+                static_cast<GLsizei>(params.height), 0,
+                static_cast<GLsizei>(params.size_in_bytes_2d), &gl_buffer[buffer_offset]);
         }
     } else {
 
@@ -691,6 +712,15 @@ void CachedSurface::UploadGLTexture(GLuint read_fb_handle, GLuint draw_fb_handle
                             static_cast<GLsizei>(rect.GetWidth()),
                             static_cast<GLsizei>(rect.GetHeight()), params.depth, tuple.format,
                             tuple.type, &gl_buffer[buffer_offset]);
+            break;
+        case SurfaceParams::SurfaceTarget::TextureCubemap:
+            for (size_t face = 0; face < params.faces; ++face) {
+                glTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, x0, y0,
+                                static_cast<GLsizei>(rect.GetWidth()),
+                                static_cast<GLsizei>(rect.GetHeight()), tuple.format, tuple.type,
+                                &gl_buffer[buffer_offset]);
+                buffer_offset += params.size_in_bytes_2d;
+            }
             break;
         default:
             LOG_CRITICAL(Render_OpenGL, "Unimplemented surface target={}",
@@ -825,21 +855,21 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& surface,
         auto source_format = GetFormatTuple(params.pixel_format, params.component_type);
         auto dest_format = GetFormatTuple(new_params.pixel_format, new_params.component_type);
 
-        size_t buffer_size = std::max(params.SizeInBytes(), new_params.SizeInBytes());
+        size_t buffer_size = std::max(params.size_in_bytes_total, new_params.size_in_bytes_total);
 
         glBindBuffer(GL_PIXEL_PACK_BUFFER, copy_pbo.handle);
         glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, nullptr, GL_STREAM_DRAW_ARB);
         if (source_format.compressed) {
             glGetCompressedTextureImage(surface->Texture().handle, 0,
-                                        static_cast<GLsizei>(params.SizeInBytes()), nullptr);
+                                        static_cast<GLsizei>(params.size_in_bytes_total), nullptr);
         } else {
             glGetTextureImage(surface->Texture().handle, 0, source_format.format,
-                              source_format.type, static_cast<GLsizei>(params.SizeInBytes()),
+                              source_format.type, static_cast<GLsizei>(params.size_in_bytes_total),
                               nullptr);
         }
         // If the new texture is bigger than the previous one, we need to fill in the rest with data
         // from the CPU.
-        if (params.SizeInBytes() < new_params.SizeInBytes()) {
+        if (params.size_in_bytes_total < new_params.size_in_bytes_total) {
             // Upload the rest of the memory.
             if (new_params.is_tiled) {
                 // TODO(Subv): We might have to de-tile the subtexture and re-tile it with the rest
@@ -849,10 +879,11 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& surface,
                 LOG_DEBUG(HW_GPU, "Trying to upload extra texture data from the CPU during "
                                   "reinterpretation but the texture is tiled.");
             }
-            size_t remaining_size = new_params.SizeInBytes() - params.SizeInBytes();
+            size_t remaining_size = new_params.size_in_bytes_total - params.size_in_bytes_total;
             std::vector<u8> data(remaining_size);
-            Memory::ReadBlock(new_params.addr + params.SizeInBytes(), data.data(), data.size());
-            glBufferSubData(GL_PIXEL_PACK_BUFFER, params.SizeInBytes(), remaining_size,
+            Memory::ReadBlock(new_params.addr + params.size_in_bytes_total, data.data(),
+                              data.size());
+            glBufferSubData(GL_PIXEL_PACK_BUFFER, params.size_in_bytes_total, remaining_size,
                             data.data());
         }
 
