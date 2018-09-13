@@ -120,20 +120,20 @@ struct SurfaceParams {
 
     static SurfaceTarget SurfaceTargetFromTextureType(Tegra::Texture::TextureType texture_type) {
         switch (texture_type) {
-        case Tegra::Texture::TextureType::Texture1D:
-            return SurfaceTarget::Texture1D;
+        // case Tegra::Texture::TextureType::Texture1D:
+        //    return SurfaceTarget::Texture1D;
         case Tegra::Texture::TextureType::Texture2D:
         case Tegra::Texture::TextureType::Texture2DNoMipmap:
             return SurfaceTarget::Texture2D;
-        case Tegra::Texture::TextureType::TextureCubemap:
-            return SurfaceTarget::TextureCubemap;
-        case Tegra::Texture::TextureType::Texture1DArray:
-            return SurfaceTarget::Texture1DArray;
+        // case Tegra::Texture::TextureType::TextureCubemap:
+        //    return SurfaceTarget::TextureCubemap;
+        // case Tegra::Texture::TextureType::Texture1DArray:
+        //    return SurfaceTarget::Texture1DArray;
         case Tegra::Texture::TextureType::Texture2DArray:
             return SurfaceTarget::Texture2DArray;
         default:
-            LOG_CRITICAL(HW_GPU, "Unimplemented texture_type={}", static_cast<u32>(texture_type));
-            UNREACHABLE();
+            // LOG_CRITICAL(HW_GPU, "Unimplemented texture_type={}",
+            // static_cast<u32>(texture_type)); UNREACHABLE();
             return SurfaceTarget::Texture2D;
         }
     }
@@ -687,8 +687,8 @@ struct SurfaceParams {
 
     /// Checks if surfaces are compatible for caching
     bool IsCompatibleSurface(const SurfaceParams& other) const {
-        return std::tie(pixel_format, type, width, height) ==
-               std::tie(other.pixel_format, other.type, other.width, other.height);
+        return std::tie(pixel_format, type, width, height, target) ==
+               std::tie(other.pixel_format, other.type, other.width, other.height, other.target);
     }
 
     VAddr addr;

@@ -510,7 +510,6 @@ private:
                      u64 dest_num_components, u64 value_num_components, u64 dest_elem) {
         if (reg == Register::ZeroIndex) {
             LOG_CRITICAL(HW_GPU, "Cannot set Register::ZeroIndex");
-            UNREACHABLE();
             return;
         }
 
@@ -572,16 +571,16 @@ private:
                 if (declr_input_attribute.count(attribute) == 0) {
                     declr_input_attribute[attribute] = input_mode;
                 } else {
-                    if (declr_input_attribute[attribute] != input_mode) {
-                        LOG_CRITICAL(HW_GPU, "Same Input multiple input modes");
-                        UNREACHABLE();
-                    }
+                    // if (declr_input_attribute[attribute] != input_mode) {
+                    //    LOG_CRITICAL(HW_GPU, "Same Input multiple input modes");
+                    //    UNREACHABLE();
+                    //}
                 }
                 return "input_attribute_" + std::to_string(index);
             }
 
             LOG_CRITICAL(HW_GPU, "Unhandled input attribute: {}", static_cast<u32>(attribute));
-            UNREACHABLE();
+            // UNREACHABLE();
         }
 
         return "vec4(0, 0, 0, 0)";
@@ -644,7 +643,7 @@ private:
             }
 
             LOG_CRITICAL(HW_GPU, "Unhandled output attribute: {}", index);
-            UNREACHABLE();
+            // UNREACHABLE();
             return {};
         }
     }
@@ -954,7 +953,7 @@ private:
         // TEXS has two destination registers and a swizzle. The first two elements in the swizzle
         // go into gpr0+0 and gpr0+1, and the rest goes into gpr28+0 and gpr28+1
 
-        ASSERT_MSG(instr.texs.nodep == 0, "TEXS nodep not implemented");
+        // ASSERT_MSG(instr.texs.nodep == 0, "TEXS nodep not implemented");
 
         size_t written_components = 0;
         for (u32 component = 0; component < 4; ++component) {
@@ -1059,7 +1058,7 @@ private:
         // Decoding failure
         if (!opcode) {
             LOG_CRITICAL(HW_GPU, "Unhandled instruction: {0:x}", instr.value);
-            UNREACHABLE();
+            // UNREACHABLE();
             return offset + 1;
         }
 
@@ -1111,13 +1110,6 @@ private:
             case OpCode::Id::FMUL_R:
             case OpCode::Id::FMUL_IMM: {
                 // FMUL does not have 'abs' bits and only the second operand has a 'neg' bit.
-                ASSERT_MSG(instr.fmul.tab5cb8_2 == 0, "FMUL tab5cb8_2({}) is not implemented",
-                           instr.fmul.tab5cb8_2.Value());
-                ASSERT_MSG(instr.fmul.tab5c68_1 == 0, "FMUL tab5cb8_1({}) is not implemented",
-                           instr.fmul.tab5c68_1.Value());
-                ASSERT_MSG(instr.fmul.tab5c68_0 == 1, "FMUL tab5cb8_0({}) is not implemented",
-                           instr.fmul.tab5c68_0
-                               .Value()); // SMO typical sends 1 here which seems to be the default
                 ASSERT_MSG(instr.fmul.cc == 0, "FMUL cc is not implemented");
 
                 op_b = GetOperandAbsNeg(op_b, false, instr.fmul.negate_b);
@@ -1845,7 +1837,7 @@ private:
                 default:
                     LOG_CRITICAL(HW_GPU, "Unhandled texture type {}",
                                  static_cast<u32>(texture_type));
-                    UNREACHABLE();
+                    // UNREACHABLE();
 
                     // Fallback to interpreting as a 2D texture for now
                     const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
@@ -1937,7 +1929,7 @@ private:
                 default:
                     LOG_CRITICAL(HW_GPU, "Unhandled texture type {}",
                                  static_cast<u32>(texture_type));
-                    UNREACHABLE();
+                    // UNREACHABLE();
 
                     // Fallback to interpreting as a 2D texture for now
                     const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
@@ -2102,7 +2094,7 @@ private:
             }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled memory instruction: {}", opcode->GetName());
-                UNREACHABLE();
+                // UNREACHABLE();
             }
             }
             break;

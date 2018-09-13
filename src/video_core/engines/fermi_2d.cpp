@@ -31,12 +31,12 @@ void Fermi2D::HandleSurfaceCopy() {
     const GPUVAddr source = regs.src.Address();
     const GPUVAddr dest = regs.dst.Address();
 
-    // TODO(Subv): Only same-format and same-size copies are allowed for now.
-    ASSERT(regs.src.format == regs.dst.format);
-    ASSERT(regs.src.width * regs.src.height == regs.dst.width * regs.dst.height);
+    //// TODO(Subv): Only same-format and same-size copies are allowed for now.
+    // ASSERT(regs.src.format == regs.dst.format);
+    // ASSERT(regs.src.width * regs.src.height == regs.dst.width * regs.dst.height);
 
-    // TODO(Subv): Only raw copies are implemented.
-    ASSERT(regs.operation == Regs::Operation::SrcCopy);
+    //// TODO(Subv): Only raw copies are implemented.
+    // ASSERT(regs.operation == Regs::Operation::SrcCopy);
 
     const VAddr source_cpu = *memory_manager.GpuToCpuAddress(source);
     const VAddr dest_cpu = *memory_manager.GpuToCpuAddress(dest);

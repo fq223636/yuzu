@@ -212,7 +212,7 @@ void RasterizerOpenGL::SetupShaders() {
         default:
             LOG_CRITICAL(HW_GPU, "Unimplemented shader index={}, enable={}, offset=0x{:08X}", index,
                          shader_config.enable.Value(), shader_config.offset);
-            UNREACHABLE();
+            // UNREACHABLE();
         }
 
         // Configure the const buffers for this shader stage.

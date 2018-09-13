@@ -165,9 +165,9 @@ void Maxwell3D::ProcessQueryGet() {
         // This seems to actually write the query sequence to the query address.
         result = regs.query.query_sequence;
         break;
-    default:
-        UNIMPLEMENTED_MSG("Unimplemented query select type {}",
-                          static_cast<u32>(regs.query.query_get.select.Value()));
+        // default:
+        //    UNIMPLEMENTED_MSG("Unimplemented query select type {}",
+        //                      static_cast<u32>(regs.query.query_get.select.Value()));
     }
 
     // TODO(Subv): Research and implement how query sync conditions work.
@@ -287,17 +287,13 @@ Texture::TICEntry Maxwell3D::GetTICEntry(u32 tic_index) const {
     Texture::TICEntry tic_entry;
     Memory::ReadBlock(*tic_address_cpu, &tic_entry, sizeof(Texture::TICEntry));
 
-    ASSERT_MSG(tic_entry.header_version == Texture::TICHeaderVersion::BlockLinear ||
-                   tic_entry.header_version == Texture::TICHeaderVersion::Pitch,
-               "TIC versions other than BlockLinear or Pitch are unimplemented");
-
     auto r_type = tic_entry.r_type.Value();
     auto g_type = tic_entry.g_type.Value();
     auto b_type = tic_entry.b_type.Value();
     auto a_type = tic_entry.a_type.Value();
 
     // TODO(Subv): Different data types for separate components are not supported
-    ASSERT(r_type == g_type && r_type == b_type && r_type == a_type);
+    // ASSERT(r_type == g_type && r_type == b_type && r_type == a_type);
 
     return tic_entry;
 }
