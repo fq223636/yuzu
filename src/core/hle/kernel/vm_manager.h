@@ -128,7 +128,7 @@ public:
     ~VMManager();
 
     /// Clears the address space map, re-initializing with a single free area.
-    void Reset(FileSys::ProgramAddressSpaceType type);
+    void Reset(FileSys::ProgramAddressSpaceType type, u64 personal_mm_heap_size_);
 
     /// Finds the VMA in which the given address is included in, or `vma_map.end()`.
     VMAHandle FindVMA(VAddr target) const;
@@ -158,6 +158,14 @@ public:
     ResultVal<VMAHandle> MapBackingMemory(VAddr target, u8* memory, u64 size, MemoryState state);
 
     /**
+     * Finds the first free address that can hold a region of the desired size.
+     *
+     * @param size Size of the desired region.
+     * @returns The found free address.
+     */
+    ResultVal<VAddr> FindFreeRegion(u32 size);
+
+    /**
      * Maps a memory-mapped IO region at a given address.
      *
      * @param target The guest address to start the mapping at.
@@ -168,6 +176,27 @@ public:
      */
     ResultVal<VMAHandle> MapMMIO(VAddr target, PAddr paddr, u64 size, MemoryState state,
                                  Memory::MemoryHookPointer mmio_handler);
+
+    /**
+     * Maps a physical memory region.
+     *
+     * @param target The guest address to start the mapping at.
+     * @param size   Size of the mapping in bytes.
+     *
+     * @return A result containing either an error code or a handle to the VMA
+     *         describing the mapped memory.
+     */
+    ResultVal<VMAHandle> MapPhysicalMemory(VAddr target, u64 size);
+
+    /**
+     * Unmaps a physical memory region.
+     *
+     * @param target The guest address start umapping at.
+     * @param size   The size of the region to unmap in bytes.
+     *
+     * @return A result code indicating either success or failure.
+     */
+    ResultCode UnmapPhysicalMemory(VAddr target, u64 size);
 
     /// Unmaps a range of addresses, splitting VMAs as necessary.
     ResultCode UnmapRange(VAddr target, u64 size);
@@ -250,6 +279,15 @@ public:
     /// Gets the total size of the TLS IO region in bytes.
     u64 GetTLSIORegionSize() const;
 
+    /// Gets the size of the personal MM heap in bytes.
+    u64 GetPersonalMMHeapSize() const;
+
+    /// Gets the number of pages that comprise the personal MM heap.
+    u64 GetNumPersonalMMHeapPages() const;
+
+    /// Gets the total amount of bytes currently being used within the personal MM heap.
+    u64 GetPersonalMMHeapUsage() const;
+
     /// Each VMManager has its own page table, which is set as the main one when the owning process
     /// is scheduled.
     Memory::PageTable page_table;
@@ -320,5 +358,8 @@ private:
 
     VAddr tls_io_region_base = 0;
     VAddr tls_io_region_end = 0;
+
+    u64 personal_mm_heap_size = 0;
+    u64 personal_mm_heap_usage = 0;
 };
 } // namespace Kernel

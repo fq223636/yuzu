@@ -19,9 +19,11 @@ enum {
     MaxConnectionsReached = 7,
     InvalidSize = 101,
     InvalidAddress = 102,
+    OutOfMemory = 104,
     HandleTableFull = 105,
     InvalidMemoryState = 106,
     InvalidMemoryPermissions = 108,
+    InvalidMemoryRange = 110,
     InvalidThreadPriority = 112,
     InvalidProcessorId = 113,
     InvalidHandle = 114,
@@ -51,11 +53,12 @@ constexpr ResultCode ERR_INVALID_ENUM_VALUE_FND(-1);
 constexpr ResultCode ERR_INVALID_COMBINATION(-1);
 constexpr ResultCode ERR_INVALID_COMBINATION_KERNEL(ErrorModule::Kernel,
                                                     ErrCodes::InvalidCombination);
-constexpr ResultCode ERR_OUT_OF_MEMORY(-1);
+constexpr ResultCode ERR_OUT_OF_MEMORY(ErrorModule::Kernel, ErrCodes::OutOfMemory);
 constexpr ResultCode ERR_INVALID_ADDRESS(ErrorModule::Kernel, ErrCodes::InvalidAddress);
 constexpr ResultCode ERR_INVALID_ADDRESS_STATE(ErrorModule::Kernel, ErrCodes::InvalidMemoryState);
 constexpr ResultCode ERR_INVALID_MEMORY_PERMISSIONS(ErrorModule::Kernel,
                                                     ErrCodes::InvalidMemoryPermissions);
+constexpr ResultCode ERR_INVALID_MEMORY_RANGE(ErrorModule::Kernel, ErrCodes::InvalidMemoryRange);
 constexpr ResultCode ERR_INVALID_HANDLE(ErrorModule::Kernel, ErrCodes::InvalidHandle);
 constexpr ResultCode ERR_INVALID_PROCESSOR_ID(ErrorModule::Kernel, ErrCodes::InvalidProcessorId);
 constexpr ResultCode ERR_INVALID_SIZE(ErrorModule::Kernel, ErrCodes::InvalidSize);

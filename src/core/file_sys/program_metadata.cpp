@@ -59,6 +59,10 @@ u8 ProgramMetadata::GetMainThreadCore() const {
     return npdm_header.main_thread_cpu;
 }
 
+u32 ProgramMetadata::GetSystemResourceSize() const {
+    return npdm_header.system_resource_size;
+}
+
 u32 ProgramMetadata::GetMainThreadStackSize() const {
     return npdm_header.main_stack_size;
 }

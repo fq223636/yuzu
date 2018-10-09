@@ -362,8 +362,8 @@ public:
             {206, &Hid::SendVibrationValues, "SendVibrationValues"},
             {207, nullptr, "SendVibrationGcErmCommand"},
             {208, nullptr, "GetActualVibrationGcErmCommand"},
-            {209, nullptr, "BeginPermitVibrationSession"},
-            {210, nullptr, "EndPermitVibrationSession"},
+            {209, &Hid::BeginPermitVibrationSession, "BeginPermitVibrationSession"},
+            {210, &Hid::EndPermitVibrationSession, "EndPermitVibrationSession"},
             {300, &Hid::ActivateConsoleSixAxisSensor, "ActivateConsoleSixAxisSensor"},
             {301, &Hid::StartConsoleSixAxisSensor, "StartConsoleSixAxisSensor"},
             {302, nullptr, "StopConsoleSixAxisSensor"},
@@ -411,6 +411,18 @@ private:
     std::shared_ptr<IAppletResource> applet_resource;
     u32 joy_hold_type{0};
     Kernel::SharedPtr<Kernel::Event> event;
+
+    void BeginPermitVibrationSession(Kernel::HLERequestContext& ctx) {
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+        LOG_DEBUG(Service_HID, "(STUBBED) called");
+    }
+
+    void EndPermitVibrationSession(Kernel::HLERequestContext& ctx) {
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+        LOG_DEBUG(Service_HID, "(STUBBED) called");
+    }
 
     void CreateAppletResource(Kernel::HLERequestContext& ctx) {
         if (applet_resource == nullptr) {
@@ -577,7 +589,7 @@ private:
     void SendVibrationValues(Kernel::HLERequestContext& ctx) {
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        // LOG_WARNING(Service_HID, "(STUBBED) called");
     }
 
     void ActivateConsoleSixAxisSensor(Kernel::HLERequestContext& ctx) {

@@ -185,10 +185,6 @@ public:
         return allowed_thread_priority_mask;
     }
 
-    u32 IsVirtualMemoryEnabled() const {
-        return is_virtual_address_memory_enabled;
-    }
-
     /// Whether this process is an AArch64 or AArch32 process.
     bool Is64BitProcess() const {
         return is_64bit_process;
@@ -272,7 +268,6 @@ private:
     /// this value from the process header.
     u32 allowed_processor_mask = THREADPROCESSORID_DEFAULT_MASK;
     u32 allowed_thread_priority_mask = 0xFFFFFFFF;
-    u32 is_virtual_address_memory_enabled = 0;
 
     // Memory used to back the allocations in the regular heap. A single vector is used to cover
     // the entire virtual address space extents that bound the allocations, including any holes.

@@ -48,7 +48,7 @@ SharedPtr<Process> Process::Create(KernelCore& kernel, std::string&& name) {
 void Process::LoadFromMetadata(const FileSys::ProgramMetadata& metadata) {
     program_id = metadata.GetTitleID();
     is_64bit_process = metadata.Is64BitProgram();
-    vm_manager.Reset(metadata.GetAddressSpaceType());
+    vm_manager.Reset(metadata.GetAddressSpaceType(), metadata.GetSystemResourceSize());
 }
 
 void Process::ParseKernelCaps(const u32* kernel_caps, std::size_t len) {
