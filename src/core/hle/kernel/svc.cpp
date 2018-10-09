@@ -39,6 +39,21 @@ namespace {
 constexpr bool Is4KBAligned(VAddr address) {
     return (address & 0xFFF) == 0;
 }
+
+// Checks if address + size is greater than the given address
+// This can return false if the size causes an overflow of a 64-bit type
+// or if the given size is zero.
+constexpr bool IsValidAddressRange(VAddr address, u64 size) {
+    return address + size > address;
+}
+
+// Checks if a given address range lies within a larger address range.
+constexpr bool IsInsideAddressRange(VAddr address, u64 size, VAddr address_range_begin,
+                                    VAddr address_range_end) {
+    const VAddr last_addressable_byte = address + size - 1;
+
+    return address_range_begin <= address && last_addressable_byte <= address_range_end - 1;
+}
 } // Anonymous namespace
 
 /// Set the process heap to a given Size. It can both extend and shrink the heap.
@@ -307,6 +322,10 @@ static void Break(u64 reason, u64 info1, u64 info2) {
         Debug_Emulated,
         "Emulated program broke execution! reason=0x{:016X}, info1=0x{:016X}, info2=0x{:016X}",
         reason, info1, info2);
+
+    if (reason & 0x80000000) {
+        return;
+    }
     ASSERT(false);
 }
 
@@ -385,8 +404,11 @@ static ResultCode GetInfo(u64* result, u64 info_id, u64 handle, u64 info_sub_id)
     case GetInfoType::NewMapRegionSize:
         *result = vm_manager.GetNewMapRegionSize();
         break;
-    case GetInfoType::IsVirtualAddressMemoryEnabled:
-        *result = current_process->IsVirtualMemoryEnabled();
+    case GetInfoType::PersonalMMHeapSize:
+        *result = vm_manager.GetPersonalMMHeapSize();
+        break;
+    case GetInfoType::PersonalMMHeapUsage:
+        *result = vm_manager.GetPersonalMMHeapUsage();
         break;
     case GetInfoType::TitleId:
         *result = current_process->GetTitleID();
@@ -406,6 +428,76 @@ static ResultCode GetInfo(u64* result, u64 info_id, u64 handle, u64 info_sub_id)
     }
 
     return RESULT_SUCCESS;
+}
+
+static ResultCode MapPhysicalMemory(VAddr addr, u64 size) {
+    LOG_DEBUG(Kernel_SVC, "called, addr={:016X}, size=0x{:X}", addr, size);
+
+    if (!Is4KBAligned(addr)) {
+        return ERR_INVALID_ADDRESS;
+    }
+
+    if (size == 0 || !Is4KBAligned(size)) {
+        return ERR_INVALID_SIZE;
+    }
+
+    if (!IsValidAddressRange(addr, size)) {
+        return ERR_INVALID_ADDRESS_STATE;
+    }
+
+    auto& vm_manager = Core::CurrentProcess()->VMManager();
+    if (vm_manager.GetPersonalMMHeapSize() == 0) {
+        return ERR_INVALID_STATE;
+    }
+
+    const VAddr address_space_base = vm_manager.GetAddressSpaceBaseAddress();
+    const VAddr address_space_end = vm_manager.GetAddressSpaceEndAddress();
+    if (!IsInsideAddressRange(addr, size, address_space_base, address_space_end)) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    const VAddr map_region_base = vm_manager.GetMapRegionBaseAddress();
+    const VAddr map_region_end = vm_manager.GetMapRegionEndAddress();
+    if (!IsInsideAddressRange(addr, size, map_region_base, map_region_end)) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    return vm_manager.MapPhysicalMemory(addr, size).Code();
+}
+
+static ResultCode UnmapPhysicalMemory(VAddr addr, u64 size) {
+    LOG_DEBUG(Kernel_SVC, "called, addr={:016X}, size=0x{:X}", addr, size);
+
+    if (!Is4KBAligned(addr)) {
+        return ERR_INVALID_ADDRESS;
+    }
+
+    if (size == 0 || !Is4KBAligned(size)) {
+        return ERR_INVALID_SIZE;
+    }
+
+    if (!IsValidAddressRange(addr, size)) {
+        return ERR_INVALID_ADDRESS_STATE;
+    }
+
+    auto& vm_manager = Core::CurrentProcess()->VMManager();
+    if (vm_manager.GetPersonalMMHeapSize() == 0) {
+        return ERR_INVALID_STATE;
+    }
+
+    const VAddr address_space_base = vm_manager.GetAddressSpaceBaseAddress();
+    const VAddr address_space_end = vm_manager.GetAddressSpaceEndAddress();
+    if (!IsInsideAddressRange(addr, size, address_space_base, address_space_end)) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    const VAddr map_region_base = vm_manager.GetMapRegionBaseAddress();
+    const VAddr map_region_end = vm_manager.GetMapRegionEndAddress();
+    if (!IsInsideAddressRange(addr, size, map_region_base, map_region_end)) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    return vm_manager.UnmapPhysicalMemory(addr, size);
 }
 
 /// Sets the thread activity
@@ -1065,8 +1157,8 @@ static const FunctionDef SVC_Table[] = {
     {0x29, SvcWrap<GetInfo>, "GetInfo"},
     {0x2A, nullptr, "FlushEntireDataCache"},
     {0x2B, nullptr, "FlushDataCache"},
-    {0x2C, nullptr, "MapPhysicalMemory"},
-    {0x2D, nullptr, "UnmapPhysicalMemory"},
+    {0x2C, SvcWrap<MapPhysicalMemory>, "MapPhysicalMemory"},
+    {0x2D, SvcWrap<UnmapPhysicalMemory>, "UnmapPhysicalMemory"},
     {0x2E, nullptr, "GetFutureThreadInfo"},
     {0x2F, nullptr, "GetLastThreadInfo"},
     {0x30, nullptr, "GetResourceLimitLimitValue"},

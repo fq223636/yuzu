@@ -57,17 +57,18 @@ bool VirtualMemoryArea::CanBeMergedWith(const VirtualMemoryArea& next) const {
 VMManager::VMManager() {
     // Default to assuming a 39-bit address space. This way we have a sane
     // starting point with executables that don't provide metadata.
-    Reset(FileSys::ProgramAddressSpaceType::Is39Bit);
+    Reset(FileSys::ProgramAddressSpaceType::Is39Bit, 0);
 }
 
 VMManager::~VMManager() {
-    Reset(FileSys::ProgramAddressSpaceType::Is39Bit);
+    Reset(FileSys::ProgramAddressSpaceType::Is39Bit, 0);
 }
 
-void VMManager::Reset(FileSys::ProgramAddressSpaceType type) {
+void VMManager::Reset(FileSys::ProgramAddressSpaceType type, u64 personal_mm_heap_size_) {
     Clear();
 
     InitializeMemoryRegionRanges(type);
+    personal_mm_heap_size = personal_mm_heap_size_;
 
     page_table.Resize(address_space_width);
 
@@ -143,6 +144,28 @@ ResultVal<VMManager::VMAHandle> VMManager::MapBackingMemory(VAddr target, u8* me
     return MakeResult<VMAHandle>(MergeAdjacent(vma_handle));
 }
 
+ResultVal<VAddr> VMManager::FindFreeRegion(u32 size) {
+    VAddr base = GetAddressSpaceBaseAddress();
+
+    // Find the first Free VMA.
+    VMAHandle vma_handle = std::find_if(vma_map.begin(), vma_map.end(), [&](const auto& vma) {
+        if (vma.second.type != VMAType::Free)
+            return false;
+
+        VAddr vma_end = vma.second.base + vma.second.size;
+        return vma_end > base && vma_end >= base + size;
+    });
+
+    if (vma_handle == vma_map.end()) {
+        // TODO(Subv): Find the correct error code here.
+        return ResultCode(-1);
+    }
+
+    VAddr target = std::max(base, vma_handle->second.base);
+
+    return MakeResult<VAddr>(target);
+}
+
 ResultVal<VMManager::VMAHandle> VMManager::MapMMIO(VAddr target, PAddr paddr, u64 size,
                                                    MemoryState state,
                                                    Memory::MemoryHookPointer mmio_handler) {
@@ -159,6 +182,33 @@ ResultVal<VMManager::VMAHandle> VMManager::MapMMIO(VAddr target, PAddr paddr, u6
     UpdatePageTableForVMA(final_vma);
 
     return MakeResult<VMAHandle>(MergeAdjacent(vma_handle));
+}
+
+ResultVal<VMManager::VMAHandle> VMManager::MapPhysicalMemory(VAddr target, u64 size) {
+    if (personal_mm_heap_usage + size > personal_mm_heap_size) {
+        return ResultVal<VMAHandle>{ERR_OUT_OF_MEMORY};
+    }
+
+    const auto result =
+        MapMemoryBlock(target, std::make_shared<std::vector<u8>>(size), 0, size, MemoryState::Heap);
+
+    if (result.Failed()) {
+        return result;
+    }
+
+    personal_mm_heap_usage += size;
+    return result;
+}
+
+ResultCode VMManager::UnmapPhysicalMemory(VAddr target, u64 size) {
+    const auto result = UnmapRange(target, size);
+
+    if (result.IsError()) {
+        return result;
+    }
+
+    personal_mm_heap_usage -= size;
+    return result;
 }
 
 VMManager::VMAIter VMManager::Unmap(VMAIter vma_handle) {
@@ -548,6 +598,18 @@ VAddr VMManager::GetTLSIORegionEndAddress() const {
 
 u64 VMManager::GetTLSIORegionSize() const {
     return tls_io_region_end - tls_io_region_base;
+}
+
+u64 VMManager::GetPersonalMMHeapSize() const {
+    return personal_mm_heap_size;
+}
+
+u64 VMManager::GetNumPersonalMMHeapPages() const {
+    return personal_mm_heap_size >> 12;
+}
+
+u64 VMManager::GetPersonalMMHeapUsage() const {
+    return personal_mm_heap_usage;
 }
 
 } // namespace Kernel

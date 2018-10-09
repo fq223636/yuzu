@@ -46,8 +46,8 @@ enum class GetInfoType : u64 {
     NewMapRegionBaseAddr = 14,
     NewMapRegionSize = 15,
     // 3.0.0+
-    IsVirtualAddressMemoryEnabled = 16,
-    PersonalMmHeapUsage = 17,
+    PersonalMMHeapSize = 16,
+    PersonalMMHeapUsage = 17,
     TitleId = 18,
     // 4.0.0+
     PrivilegedProcessId = 19,
