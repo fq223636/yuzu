@@ -777,6 +777,9 @@ static void SleepThread(s64 nanoseconds) {
     if (nanoseconds == 0 && !Core::System::GetInstance().CurrentScheduler().HaveReadyThreads())
         return;
 
+    if (nanoseconds <= 0)
+        nanoseconds = 0;
+
     // Sleep current thread and check for next thread to schedule
     WaitCurrentThread_Sleep();
 

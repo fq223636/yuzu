@@ -285,18 +285,6 @@ public:
 private:
     std::shared_ptr<IAppletResource> applet_resource;
 
-    void BeginPermitVibrationSession(Kernel::HLERequestContext& ctx) {
-        IPC::ResponseBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
-        LOG_DEBUG(Service_HID, "(STUBBED) called");
-    }
-
-    void EndPermitVibrationSession(Kernel::HLERequestContext& ctx) {
-        IPC::ResponseBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
-        LOG_DEBUG(Service_HID, "(STUBBED) called");
-    }
-
     void CreateAppletResource(Kernel::HLERequestContext& ctx) {
         if (applet_resource == nullptr) {
             applet_resource = std::make_shared<IAppletResource>();

@@ -107,7 +107,7 @@ void Controller_NPad::OnInit() {
                 npad_id_list.size() * sizeof(u32));
     if (std::none_of(connected_controllers.begin(), connected_controllers.end(),
                      [](const ControllerHolder& controller) { return controller.is_connected; })) {
-        AddNewController(NPadControllerType::Handheld);
+        AddNewController(NPadControllerType::JoyLeft);
     }
 }
 
