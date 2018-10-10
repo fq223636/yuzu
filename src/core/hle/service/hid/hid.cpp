@@ -469,6 +469,22 @@ private:
         LOG_WARNING(Service_HID, "(STUBBED) called");
     }
 
+    void BeginPermitVibrationSession(Kernel::HLERequestContext& ctx) {
+        applet_resource->GetController<Controller_NPad>(HidController::NPad)
+            .SetVibrationEnabled(true);
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+        LOG_DEBUG(Service_HID, "called");
+    }
+
+    void EndPermitVibrationSession(Kernel::HLERequestContext& ctx) {
+        applet_resource->GetController<Controller_NPad>(HidController::NPad)
+            .SetVibrationEnabled(false);
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+        LOG_DEBUG(Service_HID, "called");
+    }
+
     void SendVibrationValue(Kernel::HLERequestContext& ctx) {
         IPC::RequestParser rp{ctx};
         const auto controller_id = rp.PopRaw<u32>();
