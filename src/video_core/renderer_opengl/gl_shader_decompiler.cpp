@@ -1229,7 +1229,7 @@ private:
         // Decoding failure
         if (!opcode) {
             LOG_CRITICAL(HW_GPU, "Unhandled instruction: {0:x}", instr.value);
-            UNREACHABLE();
+            // UNREACHABLE();
             return offset + 1;
         }
 
@@ -2157,8 +2157,8 @@ private:
                 Tegra::Shader::TextureType texture_type{instr.texs.GetTextureType()};
                 bool is_array{instr.texs.IsArrayTexture()};
 
-                ASSERT_MSG(!instr.texs.UsesMiscMode(Tegra::Shader::TextureMiscMode::NODEP),
-                           "NODEP is not implemented");
+                // ASSERT_MSG(!instr.texs.UsesMiscMode(Tegra::Shader::TextureMiscMode::NODEP),
+                //           "NODEP is not implemented");
 
                 const bool depth_compare =
                     instr.texs.UsesMiscMode(Tegra::Shader::TextureMiscMode::DC);

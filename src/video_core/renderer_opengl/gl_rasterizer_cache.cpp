@@ -1074,16 +1074,6 @@ void RasterizerCacheOpenGL::FermiCopySurface(
     const auto& src_params = SurfaceParams::CreateForFermiCopySurface(src_config);
     const auto& dst_params = SurfaceParams::CreateForFermiCopySurface(dst_config);
 
-    ASSERT(src_params.width == dst_params.width);
-    ASSERT(src_params.height == dst_params.height);
-    ASSERT(src_params.pixel_format == dst_params.pixel_format);
-    ASSERT(src_params.block_height == dst_params.block_height);
-    ASSERT(src_params.is_tiled == dst_params.is_tiled);
-    ASSERT(src_params.depth == dst_params.depth);
-    ASSERT(src_params.depth == 1); // Currently, FastCopySurface only works with 2D surfaces
-    ASSERT(src_params.target == dst_params.target);
-    ASSERT(src_params.rt.index == dst_params.rt.index);
-
     FastCopySurface(GetSurface(src_params, true), GetSurface(dst_params, false));
 }
 
