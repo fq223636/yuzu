@@ -994,6 +994,11 @@ u32 RasterizerOpenGL::SetupGlobalRegions(Maxwell::ShaderStage stage, Shader& sha
     for (const auto& global_region : maxwell3d.state.global_memory_uniforms) {
         const auto& region{
             global_cache.GetGlobalRegion(global_region, static_cast<Maxwell::ShaderStage>(stage))};
+
+        if (!region) {
+            continue;
+        }
+
         const GLenum b_index{
             shader->GetProgramResourceIndex(CachedGlobalRegionUniform{global_region_index})};
 

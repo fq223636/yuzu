@@ -76,6 +76,12 @@ GlobalRegion GlobalRegionCacheOpenGL::GetGlobalRegion(
     ASSERT(cbuf_addr);
 
     const auto actual_addr_gpu = Memory::Read64(*cbuf_addr);
+
+    if (!actual_addr_gpu) {
+        LOG_CRITICAL(HW_GPU, "actual_addr_gpu is nullptr");
+        return {};
+    }
+
     const auto size = Memory::Read32(*cbuf_addr + 8);
     const auto actual_addr{gpu.MemoryManager().GpuToCpuAddress(actual_addr_gpu)};
 
