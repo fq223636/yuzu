@@ -13,6 +13,7 @@
 #include "video_core/memory_manager.h"
 
 namespace VideoCore {
+class GPUThread;
 class RendererBase;
 } // namespace VideoCore
 
@@ -163,9 +164,19 @@ public:
     void SwapBuffers(
         std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer);
 
+    /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
+    void FlushRegion(VAddr addr, u64 size);
+
+    /// Notify rasterizer that any caches of the specified region should be invalidated
+    void InvalidateRegion(VAddr addr, u64 size);
+
+    /// Notify rasterizer that any caches of the specified region should be flushed and invalidated
+    void FlushAndInvalidateRegion(VAddr addr, u64 size);
+
 private:
     std::unique_ptr<Tegra::DmaPusher> dma_pusher;
     std::unique_ptr<Tegra::MemoryManager> memory_manager;
+    std::unique_ptr<VideoCore::GPUThread> gpu_thread;
 
     /// Mapping of command subchannels to their bound engine ids.
     std::array<EngineID, 8> bound_engines = {};

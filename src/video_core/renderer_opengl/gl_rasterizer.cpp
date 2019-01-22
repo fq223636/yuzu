@@ -18,6 +18,7 @@
 #include "common/scope_exit.h"
 #include "core/core.h"
 #include "core/frontend/emu_window.h"
+#include "core/frontend/scope_acquire_window_context.h"
 #include "core/hle/kernel/process.h"
 #include "core/settings.h"
 #include "video_core/engines/maxwell_3d.h"
@@ -481,6 +482,7 @@ void RasterizerOpenGL::UpdatePagesCachedCount(Tegra::GPUVAddr addr, u64 size, in
 
 void RasterizerOpenGL::LoadDiskResources(const std::atomic_bool& stop_loading,
                                          const VideoCore::DiskResourceLoadCallback& callback) {
+    Core::Frontend::ScopeAcquireWindowContext acquire_context{emu_window};
     shader_cache.LoadDiskCache(stop_loading, callback);
 }
 
