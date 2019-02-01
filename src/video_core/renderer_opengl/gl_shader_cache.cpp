@@ -32,17 +32,17 @@ struct UnspecializedShader {
 namespace {
 
 /// Gets the address for the specified shader stage program
-VAddr GetShaderAddress(Maxwell::ShaderProgram program) {
+Tegra::GPUVAddr GetShaderAddress(Maxwell::ShaderProgram program) {
     const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
     const auto& shader_config = gpu.regs.shader_config[static_cast<std::size_t>(program)];
-    return *gpu.memory_manager.GpuToCpuAddress(gpu.regs.code_address.CodeAddress() +
-                                               shader_config.offset);
+    return gpu.regs.code_address.CodeAddress() + shader_config.offset;
 }
 
 /// Gets the shader program code from memory for the specified address
-ProgramCode GetShaderCode(VAddr addr) {
+ProgramCode GetShaderCode(Tegra::GPUVAddr addr) {
     ProgramCode program_code(VideoCommon::Shader::MAX_PROGRAM_LENGTH);
-    Memory::ReadBlock(addr, program_code.data(), program_code.size() * sizeof(u64));
+    const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
+    gpu.memory_manager.ReadBlock(addr, program_code.data(), program_code.size() * sizeof(u64));
     return program_code;
 }
 
@@ -212,8 +212,8 @@ std::set<GLenum> GetSupportedFormats() {
 
 } // namespace
 
-CachedShader::CachedShader(VAddr addr, u64 unique_identifier, Maxwell::ShaderProgram program_type,
-                           ShaderDiskCacheOpenGL& disk_cache,
+CachedShader::CachedShader(Tegra::GPUVAddr addr, u64 unique_identifier,
+                           Maxwell::ShaderProgram program_type, ShaderDiskCacheOpenGL& disk_cache,
                            const PrecompiledPrograms& precompiled_programs,
                            ProgramCode&& program_code, ProgramCode&& program_code_b)
     : addr{addr}, unique_identifier{unique_identifier}, program_type{program_type},
@@ -484,7 +484,7 @@ Shader ShaderCacheOpenGL::GetStageProgram(Maxwell::ShaderProgram program) {
         return last_shaders[static_cast<u32>(program)];
     }
 
-    const VAddr program_addr{GetShaderAddress(program)};
+    const Tegra::GPUVAddr program_addr{GetShaderAddress(program)};
 
     // Look up shader in the cache based on address
     Shader shader{TryGet(program_addr)};

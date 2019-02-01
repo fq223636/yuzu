@@ -38,7 +38,7 @@ GLintptr OGLBufferCache::UploadMemory(Tegra::GPUVAddr gpu_addr, std::size_t size
     AlignBuffer(alignment);
     const GLintptr uploaded_offset = buffer_offset;
 
-    Memory::ReadBlock(*cpu_addr, buffer_ptr, size);
+    memory_manager.ReadBlock(gpu_addr, buffer_ptr, size);
 
     buffer_ptr += size;
     buffer_offset += size;

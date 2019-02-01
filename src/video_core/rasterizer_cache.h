@@ -18,8 +18,8 @@ class RasterizerCacheObject {
 public:
     virtual ~RasterizerCacheObject();
 
-    /// Gets the address of the shader in guest memory, required for cache management
-    virtual VAddr GetAddr() const = 0;
+    /// Gets the address cached object, required for cache management
+    virtual u64 GetAddr() const = 0;
 
     /// Gets the size of the shader in guest memory, required for cache management
     virtual std::size_t GetSizeInBytes() const = 0;
@@ -68,7 +68,7 @@ public:
     explicit RasterizerCache(VideoCore::RasterizerInterface& rasterizer) : rasterizer{rasterizer} {}
 
     /// Write any cached resources overlapping the specified region back to memory
-    void FlushRegion(Tegra::GPUVAddr addr, size_t size) {
+    void FlushRegion(u64 addr, size_t size) {
         const auto& objects{GetSortedObjectsFromRegion(addr, size)};
         for (auto& object : objects) {
             FlushObject(object);
@@ -76,7 +76,7 @@ public:
     }
 
     /// Mark the specified region as being invalidated
-    void InvalidateRegion(VAddr addr, u64 size) {
+    void InvalidateRegion(u64 addr, u64 size) {
         const auto& objects{GetSortedObjectsFromRegion(addr, size)};
         for (auto& object : objects) {
             if (!object->IsRegistered()) {
@@ -96,7 +96,7 @@ public:
 
 protected:
     /// Tries to get an object from the cache with the specified address
-    T TryGet(VAddr addr) const {
+    T TryGet(u64 addr) const {
         const auto iter = map_cache.find(addr);
         if (iter != map_cache.end())
             return iter->second;
@@ -131,7 +131,7 @@ protected:
 
 private:
     /// Returns a list of cached objects from the specified memory region, ordered by access time
-    std::vector<T> GetSortedObjectsFromRegion(VAddr addr, u64 size) {
+    std::vector<T> GetSortedObjectsFromRegion(u64 addr, u64 size) {
         if (size == 0) {
             return {};
         }
@@ -164,8 +164,8 @@ private:
     }
 
     using ObjectSet = std::set<T>;
-    using ObjectCache = std::unordered_map<VAddr, T>;
-    using IntervalCache = boost::icl::interval_map<VAddr, ObjectSet>;
+    using ObjectCache = std::unordered_map<u64, T>;
+    using IntervalCache = boost::icl::interval_map<u64, ObjectSet>;
     using ObjectInterval = typename IntervalCache::interval_type;
 
     static auto GetInterval(const T& object) {

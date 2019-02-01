@@ -479,8 +479,12 @@ static void CopySurface(const Surface& src_surface, const Surface& dst_surface,
         }
         const std::size_t remaining_size = dst_params.size_in_bytes - src_params.size_in_bytes;
 
+        std::vector<u8> data(remaining_size);
+        auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
+        memory_manager.ReadBlock(dst_params.gpu_addr + src_params.size_in_bytes, data.data(),
+                                 remaining_size);
         glBufferSubData(GL_PIXEL_PACK_BUFFER, src_params.size_in_bytes, remaining_size,
-                        Memory::GetPointer(dst_params.addr + src_params.size_in_bytes));
+                        data.data());
     }
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
@@ -565,18 +569,6 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
     ApplyTextureDefaults(texture.handle, params.max_mip_level);
 
     OpenGL::LabelGLObject(GL_TEXTURE, texture.handle, params.addr, params.IdentityString());
-
-    // Clamp size to mapped GPU memory region
-    // TODO(bunnei): Super Mario Odyssey maps a 0x40000 byte region and then uses it for a 0x80000
-    // R32F render buffer. We do not yet know if this is a game bug or something else, but this
-    // check is necessary to prevent flushing from overwriting unmapped memory.
-
-    auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
-    const u64 max_size{memory_manager.GetRegionEnd(params.gpu_addr) - params.gpu_addr};
-    if (cached_size_in_bytes > max_size) {
-        LOG_ERROR(HW_GPU, "Surface size {} exceeds region size {}", params.size_in_bytes, max_size);
-        cached_size_in_bytes = max_size;
-    }
 }
 
 static void ConvertS8Z24ToZ24S8(std::vector<u8>& data, u32 width, u32 height, bool reverse) {
@@ -680,17 +672,21 @@ MICROPROFILE_DEFINE(OpenGL_SurfaceLoad, "OpenGL", "Surface Load", MP_RGB(128, 19
 void CachedSurface::LoadGLBuffer() {
     MICROPROFILE_SCOPE(OpenGL_SurfaceLoad);
     gl_buffer.resize(params.max_mip_level);
-    for (u32 i = 0; i < params.max_mip_level; i++)
+
+    for (u32 i = 0; i < params.max_mip_level; i++) {
         gl_buffer[i].resize(params.GetMipmapSizeGL(i));
+    }
+
     if (params.is_tiled) {
         ASSERT_MSG(params.block_width == 1, "Block width is defined as {} on texture type {}",
                    params.block_width, static_cast<u32>(params.target));
         for (u32 i = 0; i < params.max_mip_level; i++)
             SwizzleFunc(MortonSwizzleMode::MortonToLinear, params, gl_buffer[i], i);
     } else {
-        const auto texture_src_data{Memory::GetPointer(params.addr)};
-        const auto texture_src_data_end{texture_src_data + params.size_in_bytes_gl};
-        gl_buffer[0].assign(texture_src_data, texture_src_data_end);
+        gl_buffer[0].resize(params.size_in_bytes_gl);
+        auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
+
+        memory_manager.ReadBlock(params.gpu_addr, gl_buffer[0].data(), gl_buffer[0].size());
     }
     for (u32 i = 0; i < params.max_mip_level; i++) {
         ConvertFormatAsNeeded_LoadGLBuffer(gl_buffer[i], params.pixel_format, params.MipWidth(i),
@@ -719,15 +715,14 @@ void CachedSurface::FlushGLBuffer() {
     glPixelStorei(GL_PACK_ROW_LENGTH, 0);
     ConvertFormatAsNeeded_FlushGLBuffer(gl_buffer[0], params.pixel_format, params.width,
                                         params.height);
-    const u8* const texture_src_data = Memory::GetPointer(params.addr);
-    ASSERT(texture_src_data);
     if (params.is_tiled) {
         ASSERT_MSG(params.block_width == 1, "Block width is defined as {} on texture type {}",
                    params.block_width, static_cast<u32>(params.target));
 
         SwizzleFunc(MortonSwizzleMode::LinearToMorton, params, gl_buffer[0], 0);
     } else {
-        std::memcpy(Memory::GetPointer(GetAddr()), gl_buffer[0].data(), GetSizeInBytes());
+        auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
+        memory_manager.WriteBlock(params.gpu_addr, gl_buffer[0].data(), GetSizeInBytes());
     }
 }
 
