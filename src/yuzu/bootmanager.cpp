@@ -27,10 +27,13 @@
 EmuThread::EmuThread(GRenderWindow* render_window) : render_window(render_window) {}
 
 void EmuThread::run() {
-    if (!Settings::values.use_multi_core) {
-        // Single core mode must acquire OpenGL context for entire emulation session
-        render_window->MakeCurrent();
-    }
+    // if (!Settings::values.use_multi_core) {
+    //    // Single core mode must acquire OpenGL context for entire emulation session
+    //    render_window->MakeCurrent();
+    //}
+
+    auto context = render_window->CreateSharedContext();
+    context->MakeCurrent();
 
     MicroProfileOnThreadCreate("EmuThread");
 
@@ -86,6 +89,8 @@ public:
         context = std::make_unique<QOpenGLContext>(shared_context);
         surface.setFormat(shared_context->format());
         surface.create();
+        context->setFormat(shared_context->format());
+        context->create();
     }
 
     void MakeCurrent() override {
@@ -152,14 +157,14 @@ GRenderWindow::~GRenderWindow() {
 }
 
 void GRenderWindow::moveContext() {
-    DoneCurrent();
+    // DoneCurrent();
 
-    // If the thread started running, move the GL Context to the new thread. Otherwise, move it
-    // back.
-    auto thread = (QThread::currentThread() == qApp->thread() && emu_thread != nullptr)
-                      ? emu_thread
-                      : qApp->thread();
-    context->moveToThread(thread);
+    //// If the thread started running, move the GL Context to the new thread. Otherwise, move it
+    //// back.
+    // auto thread = (QThread::currentThread() == qApp->thread() && emu_thread != nullptr)
+    //                  ? emu_thread
+    //                  : qApp->thread();
+    // context->moveToThread(thread);
 }
 
 void GRenderWindow::SwapBuffers() {
@@ -405,12 +410,13 @@ void GRenderWindow::CaptureScreenshot(u16 res_scale, const QString& screenshot_p
 
     const Layout::FramebufferLayout layout{Layout::FrameLayoutFromResolutionScale(res_scale)};
     screenshot_image = QImage(QSize(layout.width, layout.height), QImage::Format_RGB32);
-    renderer.RequestScreenshot(screenshot_image.bits(),
-                               [=] {
-                                   screenshot_image.mirrored(false, true).save(screenshot_path);
-                                   LOG_INFO(Frontend, "The screenshot is saved.");
-                               },
-                               layout);
+    renderer.RequestScreenshot(
+        screenshot_image.bits(),
+        [=] {
+            screenshot_image.mirrored(false, true).save(screenshot_path);
+            LOG_INFO(Frontend, "The screenshot is saved.");
+        },
+        layout);
 }
 
 void GRenderWindow::OnMinimalClientAreaChangeRequest(
