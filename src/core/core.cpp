@@ -168,6 +168,7 @@ struct System::Impl {
         }
 
         auto main_process = Kernel::Process::Create(system, "main");
+        kernel.MakeCurrentProcess(main_process.get());
         const auto [load_result, load_parameters] = app_loader->Load(*main_process);
         if (load_result != Loader::ResultStatus::Success) {
             LOG_CRITICAL(Core, "Failed to load ROM (Error {})!", static_cast<int>(load_result));
@@ -176,7 +177,6 @@ struct System::Impl {
             return static_cast<ResultStatus>(static_cast<u32>(ResultStatus::ErrorLoader) +
                                              static_cast<u32>(load_result));
         }
-        kernel.MakeCurrentProcess(main_process.get());
 
         // Main process has been loaded and been made current.
         // Begin GPU and CPU execution.
