@@ -17,6 +17,7 @@
 #include "core/hle/kernel/code_set.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/kernel/vm_manager.h"
+#include "core/loader/linker.h"
 #include "core/loader/nso.h"
 #include "core/memory.h"
 #include "core/settings.h"
@@ -156,6 +157,12 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::Process& process,
             system.RegisterCheatList(cheats, Common::HexArrayToString(nso_header.build_id),
                                      load_base, load_base + program_image.size());
         }
+    }
+
+    if (has_mod_header) {
+        Linker linker;
+        linker.ParseDynamicSection(program_image, module_offset + mod_header.dynamic_offset,
+                                   load_base);
     }
 
     // Load codeset for current process

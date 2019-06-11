@@ -34,6 +34,7 @@ public:
     void SetVectorReg(int index, u128 value) override;
     u32 GetPSTATE() const override;
     void SetPSTATE(u32 pstate) override;
+    void WriteHleHook(VAddr hook_addr) override;
     void Run() override;
     void Step() override;
     VAddr GetTlsAddress() const override;

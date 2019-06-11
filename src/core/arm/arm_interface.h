@@ -159,6 +159,8 @@ public:
     /// fp+0 : pointer to previous frame record
     /// fp+8 : value of lr for frame
     void LogBacktrace() const;
+
+    virtual void WriteHleHook(VAddr hook_addr){};
 };
 
 } // namespace Core

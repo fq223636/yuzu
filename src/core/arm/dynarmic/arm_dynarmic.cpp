@@ -159,6 +159,24 @@ std::unique_ptr<Dynarmic::A64::Jit> ARM_Dynarmic::MakeJit(Common::PageTable& pag
 
 MICROPROFILE_DEFINE(ARM_Jit_Dynarmic, "ARM JIT", "Dynarmic", MP_RGB(255, 64, 64));
 
+namespace HLE {
+
+u64 memcpy(u64 dst, u64 src, u64 size) {
+    Memory::CopyBlock(dst, src, size);
+    return dst;
+}
+
+} // namespace HLE
+
+void ARM_Dynarmic::WriteHleHook(VAddr hook_addr) {
+    jit->AddHLEFunctions(
+        {{hook_addr,
+          {(void*)&HLE::memcpy,
+           {Dynarmic::A64::HLE::ArgumentType::Integer},
+           {Dynarmic::A64::HLE::ArgumentType::Integer, Dynarmic::A64::HLE::ArgumentType::Integer,
+            Dynarmic::A64::HLE::ArgumentType::Integer}}}});
+}
+
 void ARM_Dynarmic::Run() {
     MICROPROFILE_SCOPE(ARM_Jit_Dynarmic);
 
