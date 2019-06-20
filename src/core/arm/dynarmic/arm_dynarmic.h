@@ -51,6 +51,8 @@ public:
     void PageTableChanged(Common::PageTable& new_page_table,
                           std::size_t new_address_space_size_in_bits) override;
 
+    void AddHLEFunction(VAddr hook_addr, const Hooks::Function& function) override;
+
 private:
     std::unique_ptr<Dynarmic::A64::Jit> MakeJit(Common::PageTable& page_table,
                                                 std::size_t address_space_bits) const;

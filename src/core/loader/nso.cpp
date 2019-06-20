@@ -18,6 +18,7 @@
 #include "core/hle/kernel/process.h"
 #include "core/hle/kernel/vm_manager.h"
 #include "core/loader/nso.h"
+#include "core/loader/nso_linker.h"
 #include "core/memory.h"
 #include "core/settings.h"
 
@@ -73,6 +74,7 @@ FileType AppLoader_NSO::IdentifyType(const FileSys::VirtualFile& file) {
 std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::Process& process,
                                                const FileSys::VfsFile& file, VAddr load_base,
                                                bool should_pass_arguments,
+                                               Hooks::Manager& hooks_manager,
                                                std::optional<FileSys::PatchManager> pm) {
     if (file.GetSize() < sizeof(NSOHeader)) {
         return {};
@@ -158,6 +160,11 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::Process& process,
         }
     }
 
+    if (has_mod_header) {
+        NSO::ParseDynamicSection(program_image, module_offset + mod_header.dynamic_offset,
+                                 load_base, hooks_manager);
+    }
+
     // Load codeset for current process
     codeset.memory = std::move(program_image);
     process.LoadModule(std::move(codeset), load_base);
@@ -168,14 +175,15 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::Process& process,
     return load_base + image_size;
 }
 
-AppLoader_NSO::LoadResult AppLoader_NSO::Load(Kernel::Process& process) {
+AppLoader_NSO::LoadResult AppLoader_NSO::Load(Kernel::Process& process,
+                                              Hooks::Manager& hooks_manager) {
     if (is_loaded) {
         return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
 
     // Load module
     const VAddr base_address = process.VMManager().GetCodeRegionBaseAddress();
-    if (!LoadModule(process, *file, base_address, true)) {
+    if (!LoadModule(process, *file, base_address, true, hooks_manager)) {
         return {ResultStatus::ErrorLoadingNSO, {}};
     }
     LOG_DEBUG(Loader, "loaded module {} @ 0x{:X}", file->GetName(), base_address);

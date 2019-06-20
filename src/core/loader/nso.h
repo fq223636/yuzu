@@ -82,9 +82,10 @@ public:
 
     static std::optional<VAddr> LoadModule(Kernel::Process& process, const FileSys::VfsFile& file,
                                            VAddr load_base, bool should_pass_arguments,
+                                           Hooks::Manager& hooks_manager,
                                            std::optional<FileSys::PatchManager> pm = {});
 
-    LoadResult Load(Kernel::Process& process) override;
+    LoadResult Load(Kernel::Process& process, Hooks::Manager& hooks_manager) override;
 };
 
 } // namespace Loader

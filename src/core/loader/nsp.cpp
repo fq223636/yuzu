@@ -72,7 +72,8 @@ FileType AppLoader_NSP::IdentifyType(const FileSys::VirtualFile& file) {
     return FileType::Error;
 }
 
-AppLoader_NSP::LoadResult AppLoader_NSP::Load(Kernel::Process& process) {
+AppLoader_NSP::LoadResult AppLoader_NSP::Load(Kernel::Process& process,
+                                              Hooks::Manager& hooks_manager) {
     if (is_loaded) {
         return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
@@ -99,7 +100,7 @@ AppLoader_NSP::LoadResult AppLoader_NSP::Load(Kernel::Process& process) {
         return {ResultStatus::ErrorNSPMissingProgramNCA, {}};
     }
 
-    const auto result = secondary_loader->Load(process);
+    const auto result = secondary_loader->Load(process, hooks_manager);
     if (result.first != ResultStatus::Success) {
         return result;
     }

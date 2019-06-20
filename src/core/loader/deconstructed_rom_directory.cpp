@@ -87,7 +87,7 @@ FileType AppLoader_DeconstructedRomDirectory::IdentifyType(const FileSys::Virtua
 }
 
 AppLoader_DeconstructedRomDirectory::LoadResult AppLoader_DeconstructedRomDirectory::Load(
-    Kernel::Process& process) {
+    Kernel::Process& process, Hooks::Manager& hooks_manager) {
     if (is_loaded) {
         return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
@@ -152,8 +152,8 @@ AppLoader_DeconstructedRomDirectory::LoadResult AppLoader_DeconstructedRomDirect
 
         const VAddr load_addr = next_load_addr;
         const bool should_pass_arguments = std::strcmp(module, "rtld") == 0;
-        const auto tentative_next_load_addr =
-            AppLoader_NSO::LoadModule(process, *module_file, load_addr, should_pass_arguments, pm);
+        const auto tentative_next_load_addr = AppLoader_NSO::LoadModule(
+            process, *module_file, load_addr, should_pass_arguments, hooks_manager, pm);
         if (!tentative_next_load_addr) {
             return {ResultStatus::ErrorLoadingNSO, {}};
         }

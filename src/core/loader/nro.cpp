@@ -201,7 +201,8 @@ bool AppLoader_NRO::LoadNro(Kernel::Process& process, const FileSys::VfsFile& fi
     return LoadNroImpl(process, file.ReadAllBytes(), file.GetName(), load_base);
 }
 
-AppLoader_NRO::LoadResult AppLoader_NRO::Load(Kernel::Process& process) {
+AppLoader_NRO::LoadResult AppLoader_NRO::Load(Kernel::Process& process,
+                                              Hooks::Manager& /*hooks_manager*/) {
     if (is_loaded) {
         return {ResultStatus::ErrorAlreadyLoaded, {}};
     }

@@ -30,7 +30,8 @@ FileType AppLoader_NCA::IdentifyType(const FileSys::VirtualFile& file) {
     return FileType::Error;
 }
 
-AppLoader_NCA::LoadResult AppLoader_NCA::Load(Kernel::Process& process) {
+AppLoader_NCA::LoadResult AppLoader_NCA::Load(Kernel::Process& process,
+                                              Hooks::Manager& hooks_manager) {
     if (is_loaded) {
         return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
@@ -51,7 +52,7 @@ AppLoader_NCA::LoadResult AppLoader_NCA::Load(Kernel::Process& process) {
 
     directory_loader = std::make_unique<AppLoader_DeconstructedRomDirectory>(exefs, true);
 
-    const auto load_result = directory_loader->Load(process);
+    const auto load_result = directory_loader->Load(process, hooks_manager);
     if (load_result.first != ResultStatus::Success) {
         return load_result;
     }

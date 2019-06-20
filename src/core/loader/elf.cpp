@@ -382,7 +382,8 @@ FileType AppLoader_ELF::IdentifyType(const FileSys::VirtualFile& file) {
     return FileType::Error;
 }
 
-AppLoader_ELF::LoadResult AppLoader_ELF::Load(Kernel::Process& process) {
+AppLoader_ELF::LoadResult AppLoader_ELF::Load(Kernel::Process& process,
+                                              Hooks::Manager& /*hooks_manager*/) {
     if (is_loaded) {
         return {ResultStatus::ErrorAlreadyLoaded, {}};
     }

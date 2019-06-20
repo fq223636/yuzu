@@ -15,6 +15,10 @@ namespace Kernel {
 enum class VMAPermission : u8;
 }
 
+namespace Hooks {
+struct Function;
+}
+
 namespace Core {
 
 /// Generic ARMv8 CPU interface
@@ -151,6 +155,14 @@ public:
 
     /// Prepare core for thread reschedule (if needed to correctly handle state)
     virtual void PrepareReschedule() = 0;
+
+    /**
+     * Adds a new HLE function to be called in place of code execution.
+     *
+     * @param hook_addr Address of the function.
+     * @param function Details for the function to call.
+     */
+    virtual void AddHLEFunction(VAddr hook_addr, const Hooks::Function& function) {}
 
     /// fp (= r29) points to the last frame record.
     /// Note that this is the frame record for the *previous* frame, not the current one.

@@ -24,6 +24,7 @@
 #include "core/frontend/applets/software_keyboard.h"
 #include "core/frontend/applets/web_browser.h"
 #include "core/gdbstub/gdbstub.h"
+#include "core/hle/hooks/manager.h"
 #include "core/hle/kernel/client_port.h"
 #include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/process.h"
@@ -119,6 +120,7 @@ struct System::Impl {
 
         telemetry_session = std::make_unique<Core::TelemetrySession>();
         service_manager = std::make_shared<Service::SM::ServiceManager>();
+        hooks_manager = std::make_unique<Hooks::Manager>();
 
         Service::Init(service_manager, system, *virtual_filesystem);
         GDBStub::Init();
@@ -168,7 +170,7 @@ struct System::Impl {
         }
 
         auto main_process = Kernel::Process::Create(system, "main");
-        const auto [load_result, load_parameters] = app_loader->Load(*main_process);
+        const auto [load_result, load_parameters] = app_loader->Load(*main_process, *hooks_manager);
         if (load_result != Loader::ResultStatus::Success) {
             LOG_CRITICAL(Core, "Failed to load ROM (Error {})!", static_cast<int>(load_result));
             Shutdown();
@@ -177,6 +179,8 @@ struct System::Impl {
                                              static_cast<u32>(load_result));
         }
         kernel.MakeCurrentProcess(main_process.get());
+
+        hooks_manager->ReloadHooks(system);
 
         // Main process has been loaded and been made current.
         // Begin GPU and CPU execution.
@@ -267,6 +271,8 @@ struct System::Impl {
 
     /// Service manager
     std::shared_ptr<Service::SM::ServiceManager> service_manager;
+
+    std::unique_ptr<Hooks::Manager> hooks_manager;
 
     /// Telemetry session for this emulation session
     std::unique_ptr<Core::TelemetrySession> telemetry_session;

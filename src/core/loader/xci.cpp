@@ -48,7 +48,8 @@ FileType AppLoader_XCI::IdentifyType(const FileSys::VirtualFile& file) {
     return FileType::Error;
 }
 
-AppLoader_XCI::LoadResult AppLoader_XCI::Load(Kernel::Process& process) {
+AppLoader_XCI::LoadResult AppLoader_XCI::Load(Kernel::Process& process,
+                                              Hooks::Manager& hooks_manager) {
     if (is_loaded) {
         return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
@@ -65,7 +66,7 @@ AppLoader_XCI::LoadResult AppLoader_XCI::Load(Kernel::Process& process) {
         return {ResultStatus::ErrorMissingProductionKeyFile, {}};
     }
 
-    const auto result = nca_loader->Load(process);
+    const auto result = nca_loader->Load(process, hooks_manager);
     if (result.first != ResultStatus::Success) {
         return result;
     }

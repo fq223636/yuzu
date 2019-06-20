@@ -2,10 +2,14 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <cinttypes>
 #include <memory>
+
 #include <dynarmic/A64/a64.h>
 #include <dynarmic/A64/config.h>
+#include <dynarmic/A64/hle.h>
+
 #include "common/logging/log.h"
 #include "common/microprofile.h"
 #include "core/arm/dynarmic/arm_dynarmic.h"
@@ -14,6 +18,7 @@
 #include "core/core_timing.h"
 #include "core/core_timing_util.h"
 #include "core/gdbstub/gdbstub.h"
+#include "core/hle/hooks/function.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/kernel/svc.h"
 #include "core/hle/kernel/vm_manager.h"
@@ -271,6 +276,34 @@ void ARM_Dynarmic::ClearExclusiveState() {
 void ARM_Dynarmic::PageTableChanged(Common::PageTable& page_table,
                                     std::size_t new_address_space_size_in_bits) {
     jit = MakeJit(page_table, new_address_space_size_in_bits);
+}
+
+static Dynarmic::A64::HLE::ArgumentType ToDynarmicArgumentType(Hooks::ArgumentType argument) {
+    switch (argument) {
+    case Hooks::ArgumentType::Integer:
+        return Dynarmic::A64::HLE::ArgumentType::Integer;
+    case Hooks::ArgumentType::Float:
+        return Dynarmic::A64::HLE::ArgumentType::Float;
+    }
+    UNREACHABLE_MSG("Unimplemented ArgumentType");
+    return {};
+}
+
+void ARM_Dynarmic::AddHLEFunction(VAddr hook_addr, const Hooks::Function& function) {
+    Dynarmic::A64::HLE::Function dynarmic_function{};
+
+    dynarmic_function.pointer = function.pointer;
+
+    if (function.return_type.has_value()) {
+        dynarmic_function.return_type = ToDynarmicArgumentType(*function.return_type);
+    }
+
+    std::for_each(function.argument_types.begin(), function.argument_types.end(),
+                  [&](Hooks::ArgumentType argument) {
+                      dynarmic_function.argument_types.push_back(ToDynarmicArgumentType(argument));
+                  });
+
+    jit->AddHLEFunctions({{hook_addr, {dynarmic_function}}});
 }
 
 DynarmicExclusiveMonitor::DynarmicExclusiveMonitor(std::size_t core_count) : monitor(core_count) {}

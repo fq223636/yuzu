@@ -2233,6 +2233,15 @@ static ResultCode GetThreadList(Core::System& system, u32* out_num_threads, VAdd
     return RESULT_SUCCESS;
 }
 
+static void HleHandler(Core::System& system) {
+    u64 dst = system.CurrentArmInterface().GetReg(0);
+    u64 src = system.CurrentArmInterface().GetReg(1);
+    u64 size = system.CurrentArmInterface().GetReg(2);
+
+    Memory::CopyBlock(dst, src, size);
+    return;
+}
+
 namespace {
 struct FunctionDef {
     using Func = void(Core::System&);
@@ -2372,7 +2381,7 @@ static const FunctionDef SVC_Table[] = {
     {0x7D, SvcWrap<CreateResourceLimit>, "CreateResourceLimit"},
     {0x7E, SvcWrap<SetResourceLimitLimitValue>, "SetResourceLimitLimitValue"},
     {0x7F, nullptr, "CallSecureMonitor"},
-};
+    {0x80, SvcWrap<HleHandler>, "HleHandler"}};
 
 static const FunctionDef* GetSVCInfo(u32 func_num) {
     if (func_num >= std::size(SVC_Table)) {

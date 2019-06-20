@@ -24,6 +24,10 @@ struct AddressMapping;
 class Process;
 } // namespace Kernel
 
+namespace Hooks {
+class Manager;
+} // namespace Hooks
+
 namespace Loader {
 
 /// File types supported by CTR
@@ -149,9 +153,10 @@ public:
     /**
      * Load the application and return the created Process instance
      * @param process The newly created process.
+     * @param hooks_manager Manager object for registering symbols found during load.
      * @return The status result of the operation.
      */
-    virtual LoadResult Load(Kernel::Process& process) = 0;
+    virtual LoadResult Load(Kernel::Process& process, Hooks::Manager& hooks_manager) = 0;
 
     /**
      * Loads the system mode that this application needs.

@@ -115,6 +115,12 @@ add_library(core STATIC
     frontend/scope_acquire_window_context.h
     gdbstub/gdbstub.cpp
     gdbstub/gdbstub.h
+    hle/hooks/function.cpp
+    hle/hooks/function.h
+    hle/hooks/manager.cpp
+    hle/hooks/manager.h
+    hle/hooks/stdlib/stdlib.cpp
+    hle/hooks/stdlib/stdlib.h
     hle/ipc.h
     hle/ipc_helpers.h
     hle/kernel/address_arbiter.cpp
@@ -459,6 +465,8 @@ add_library(core STATIC
     loader/nro.h
     loader/nso.cpp
     loader/nso.h
+    loader/nso_linker.cpp
+    loader/nso_linker.h
     loader/nsp.cpp
     loader/nsp.h
     loader/xci.cpp

@@ -2,6 +2,8 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#pragma optimize("", off)
+
 #include <QApplication>
 #include <QHBoxLayout>
 #include <QKeyEvent>
@@ -10,11 +12,15 @@
 #include <QPainter>
 #include <QScreen>
 #include <QWindow>
+#include <common/swap.h>
 #include <fmt/format.h>
 #include "common/microprofile.h"
 #include "common/scm_rev.h"
+#include "core/arm/arm_interface.h"
 #include "core/core.h"
 #include "core/frontend/framebuffer_layout.h"
+#include "core/hle/kernel/process.h"
+#include "core/memory.h"
 #include "core/settings.h"
 #include "input_common/keyboard.h"
 #include "input_common/main.h"
@@ -212,6 +218,32 @@ void GRenderWindow::moveContext() {
                       : qApp->thread();
     context->moveToThread(thread);
 }
+//
+// std::vector<u8> backing_memory;
+// void MapHookMemory() {
+//    auto process = Core::System::GetInstance().CurrentProcess();
+//
+//    backing_memory.resize(0x40000);
+//
+//    process->VMManager().MapBackingMemory(0x100000, backing_memory.data(), backing_memory.size(),
+//                                          Kernel::MemoryState::ModuleCode);
+//}
+//
+// void WriteHook(VAddr patch_addr, VAddr hook_addr) {
+//    auto process = Core::System::GetInstance().CurrentProcess();
+//
+//    auto vma = process->VMManager().FindVMA(patch_addr);
+//    auto& vma2 = vma->second;
+//
+//    Memory::Write32(hook_addr + 0, 0xd4001001); // 01 10 00 D4  | SVC #0xFF
+//    Memory::Write32(hook_addr + 4, 0xd65f03c0); // C0 03 5F D6  | RET
+//    Memory::Write32(patch_addr, hook_addr);
+//
+//    Core::System::GetInstance().ArmInterface(0).ClearInstructionCache();
+//    Core::System::GetInstance().ArmInterface(1).ClearInstructionCache();
+//    Core::System::GetInstance().ArmInterface(2).ClearInstructionCache();
+//    Core::System::GetInstance().ArmInterface(3).ClearInstructionCache();
+//}
 
 void GRenderWindow::SwapBuffers() {
     // In our multi-threaded QWidget use case we shouldn't need to call `makeCurrent`,
@@ -224,8 +256,25 @@ void GRenderWindow::SwapBuffers() {
 
     context->swapBuffers(child);
     if (!first_frame) {
+        // Memory::Wr
+
         emit FirstFrameDisplayed();
         first_frame = true;
+
+        /*MapHookMemory();
+        WriteHook(0x0000000008005000 + 0x0000000001e4d700, 0x100000);*/
+
+        // Core::System::GetInstance().CurrentArmInterface().WriteHleHooks();
+
+        // u32 value0 = Common::swap32(Memory::Read32(0x0000000008005000 + 0x0000000001e4d700 + 0));
+        // u32 value1 = Common::swap32(Memory::Read32(0x0000000008005000 + 0x0000000001e4d700 + 4));
+        // u32 value2 = Common::swap32(Memory::Read32(0x0000000008005000 + 0x0000000001e4d700 + 8));
+
+        //        Memory::Write32(0x0000000008005000 + 0x0000000001e4d700,
+        //                      /*0xE11F00d4*/ 0xdeadbeef);
+        //// Memory::Write32(0x0000000008005000 + 0x0000000001e4d704, /*0xE11F00d4*/ 0xbadc0de);
+
+        // E11F00d4
     }
 }
 
@@ -432,12 +481,13 @@ void GRenderWindow::CaptureScreenshot(u16 res_scale, const QString& screenshot_p
 
     const Layout::FramebufferLayout layout{Layout::FrameLayoutFromResolutionScale(res_scale)};
     screenshot_image = QImage(QSize(layout.width, layout.height), QImage::Format_RGB32);
-    renderer.RequestScreenshot(screenshot_image.bits(),
-                               [=] {
-                                   screenshot_image.mirrored(false, true).save(screenshot_path);
-                                   LOG_INFO(Frontend, "The screenshot is saved.");
-                               },
-                               layout);
+    renderer.RequestScreenshot(
+        screenshot_image.bits(),
+        [=] {
+            screenshot_image.mirrored(false, true).save(screenshot_path);
+            LOG_INFO(Frontend, "The screenshot is saved.");
+        },
+        layout);
 }
 
 void GRenderWindow::OnMinimalClientAreaChangeRequest(std::pair<unsigned, unsigned> minimal_size) {
