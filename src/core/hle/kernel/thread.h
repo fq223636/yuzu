@@ -436,6 +436,18 @@ public:
         return is_running;
     }
 
+    bool IsTerminationPending() const {
+        return is_termination_pending;
+    }
+
+    bool IsCancelled() const {
+        return is_cancelled;
+    }
+
+    void SetIsCancelled(bool value) {
+        is_cancelled = value;
+    }
+
     void SetIsRunning(bool value) {
         is_running = value;
     }
@@ -524,6 +536,8 @@ private:
 
     u32 scheduling_state = 0;
     bool is_running = false;
+    bool is_termination_pending = false;
+    bool is_cancelled = false;
 
     std::string name;
 };

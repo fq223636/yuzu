@@ -505,6 +505,15 @@ static ResultCode WaitSynchronization(Core::System& system, Handle* index, VAddr
         return RESULT_TIMEOUT;
     }
 
+    SharedPtr<Thread> current_thread = system.CurrentScheduler().GetCurrentThread();
+    if (current_thread->IsTerminationPending() ||
+        current_thread->GetSchedulingStatus() == ThreadSchedStatus::Exited) {
+        return ERR_THREAD_TERMINATING;
+    } else if (current_thread->IsCancelled()) {
+        current_thread->SetIsCancelled(false);
+        return ERR_SYNCHRONIZATION_CANCELED;
+    }
+
     for (auto& object : objects) {
         object->AddWaitingThread(thread);
     }
@@ -1590,6 +1599,13 @@ static void SleepThread(Core::System& system, s64 nanoseconds) {
 static ResultCode WaitProcessWideKeyAtomic(Core::System& system, VAddr mutex_addr,
                                            VAddr condition_variable_addr, Handle thread_handle,
                                            s64 nano_seconds) {
+
+    SharedPtr<Thread> current_thread = system.CurrentScheduler().GetCurrentThread();
+    if (current_thread->IsTerminationPending() ||
+        current_thread->GetSchedulingStatus() == ThreadSchedStatus::Exited) {
+        return ERR_THREAD_TERMINATING;
+    }
+
     LOG_TRACE(
         Kernel_SVC,
         "called mutex_addr={:X}, condition_variable_addr={:X}, thread_handle=0x{:08X}, timeout={}",
@@ -1615,8 +1631,6 @@ static ResultCode WaitProcessWideKeyAtomic(Core::System& system, VAddr mutex_add
     const auto& handle_table = current_process->GetHandleTable();
     SharedPtr<Thread> thread = handle_table.Get<Thread>(thread_handle);
     ASSERT(thread);
-
-    SharedPtr<Thread> current_thread = system.CurrentScheduler().GetCurrentThread();
 
     const auto release_result =
         current_process->GetMutex().Release(mutex_addr, current_thread.get());
@@ -1728,6 +1742,12 @@ static ResultCode WaitForAddress(Core::System& system, VAddr address, u32 type, 
                                  s64 timeout) {
     LOG_TRACE(Kernel_SVC, "called, address=0x{:X}, type=0x{:X}, value=0x{:X}, timeout={}", address,
               type, value, timeout);
+
+    SharedPtr<Thread> current_thread = system.CurrentScheduler().GetCurrentThread();
+    if (current_thread->IsTerminationPending() ||
+        current_thread->GetSchedulingStatus() == ThreadSchedStatus::Exited) {
+        return ERR_THREAD_TERMINATING;
+    }
 
     // If the passed address is a kernel virtual address, return invalid memory state.
     if (Memory::IsKernelVirtualAddress(address)) {

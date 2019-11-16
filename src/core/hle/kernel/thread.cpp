@@ -132,10 +132,21 @@ void Thread::ResumeFromWait() {
 }
 
 void Thread::CancelWait() {
-    ASSERT(GetStatus() == ThreadStatus::WaitSynch);
-    ClearWaitObjects();
-    SetWaitSynchronizationResult(ERR_SYNCHRONIZATION_CANCELED);
-    ResumeFromWait();
+    if (GetSchedulingStatus() != ThreadSchedStatus::Paused ||
+        GetStatus() != ThreadStatus::WaitSynch) {
+        is_cancelled = true;
+    } else if (wait_mutex_threads.size()) {
+        wait_mutex_threads = {};
+        lock_owner = nullptr;
+        UpdatePriority();
+        ResumeFromWait();
+        is_cancelled = true;
+    } else {
+        ClearWaitObjects();
+        SetWaitSynchronizationResult(ERR_SYNCHRONIZATION_CANCELED);
+        ResumeFromWait();
+        is_cancelled = false;
+    }
 }
 
 /**
@@ -360,19 +371,26 @@ bool Thread::InvokeWakeupCallback(ThreadWakeupReason reason, SharedPtr<Thread> t
 void Thread::SetActivity(ThreadActivity value) {
     activity = value;
 
-    if (value == ThreadActivity::Paused) {
-        // Set status if not waiting
-        if (status == ThreadStatus::Ready || status == ThreadStatus::Running) {
-            SetStatus(ThreadStatus::Paused);
-            Core::System::GetInstance().CpuCore(processor_id).PrepareReschedule();
+    if (!is_termination_pending && GetSchedulingStatus() != ThreadSchedStatus::Exited) {
+        if (value == ThreadActivity::Paused) {
+            // Set status if not waiting
+            if (status == ThreadStatus::Ready || status == ThreadStatus::Running) {
+                SetStatus(ThreadStatus::Paused);
+                Core::System::GetInstance().CpuCore(processor_id).PrepareReschedule();
+                LOG_ERROR(Kernel_SVC, "THREAD PAUSEDDDD2???????");
+            }
+        } else if (status == ThreadStatus::Paused) {
+            // Ready to reschedule
+            ResumeFromWait();
         }
-    } else if (status == ThreadStatus::Paused) {
-        // Ready to reschedule
-        ResumeFromWait();
     }
 }
 
 void Thread::Sleep(s64 nanoseconds) {
+    if (is_termination_pending || GetSchedulingStatus() == ThreadSchedStatus::Exited) {
+        return;
+    }
+
     // Sleep current thread and check for next thread to schedule
     SetStatus(ThreadStatus::WaitSleep);
 
